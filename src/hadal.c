@@ -1,7 +1,9 @@
 #include "amw.h"
 #include "hadopelagic.h"
 #include "internal.h"
+#include "renderer/vulkan.h"
 #include "system.h"
+#include <vulkan/vulkan_core.h>
 
 hadopelagic_t hadal = {0};
 
@@ -34,7 +36,7 @@ static const struct { int32_t id; bool (*connect)(void); } supported_platforms[]
     /* TODO */
 #endif
 #ifdef AMW_NATIVE_WAYLAND
-    { AMW_HADAL_PLATFORM_WAYLAND, amw_wayland_connect },
+    { AMW_HADAL_PLATFORM_WAYLAND, hadal_wayland_connect },
 #endif
 #ifdef AMW_NATIVE_XCB
     /* TODO */
@@ -43,7 +45,6 @@ static const struct { int32_t id; bool (*connect)(void); } supported_platforms[]
     /* TODO */
 #endif
 };
-amw_static_assert(amw_arraysize(supported_platforms) > 0, "There should be atleast ONE supported platform here...");
 
 static bool select_platform(int32_t id) 
 {
@@ -66,9 +67,11 @@ static bool select_platform(int32_t id)
     /* only allow headless mode if explicitly requested */
     if (id == AMW_HADAL_PLATFORM_HEADLESS) {
         /* TODO headless connect */
-        return AMW_TRUE;
+        // return AMW_TRUE
+        amw_log_error("Headless mode not supported right now.");
+        return AMW_FALSE;
     } else if (count == 0) {
-        amw_log_fatal("This binary supports only headless platform. Headless mode must be called explicitly.");
+        amw_log_error("This binary supports only headless platform. Headless mode must be called explicitly.");
         return AMW_FALSE;
     }
 
@@ -94,8 +97,8 @@ static bool select_platform(int32_t id)
 
 static void terminate(void)
 {
-    if (hadal.window_list)
-        amw_window_destroy(hadal.window_list);
+    if (hadal.window_list != NULL)
+        amw_hadal_destroy_window(hadal.window_list);
 
     if (hadal.api.terminate)
         hadal.api.terminate();
@@ -129,7 +132,7 @@ int32_t amw_hadal_init(int32_t platform_id)
     hadal.initialized = AMW_TRUE;
     amw_log_verbose("Hadal initialized!");
 
-    return 0;
+    return AMW_SUCCESS;
 }
 
 void amw_hadal_terminate(void)
@@ -140,13 +143,13 @@ void amw_hadal_terminate(void)
     }
 }
 
-amw_window_t *amw_window_create(const char *title, int32_t width, int32_t height, uint32_t flags)
+amw_window_t *amw_hadal_create_window(const char *title, int32_t width, int32_t height, uint32_t flags)
 {
     if (!hadal.initialized)
         return NULL;
 
     /* FIXME, for now allow only one window */
-    if (hadal.window_list)
+    if (hadal.window_list != NULL)
         return hadal.window_list;
 
     amw_assert(title != NULL);
@@ -155,6 +158,7 @@ amw_window_t *amw_window_create(const char *title, int32_t width, int32_t height
         amw_log_error("Invalid window dimensions %ix%i", width, height);
         return AMW_FALSE;
     }
+    amw_log_verbose("Creating a window: %ix%i '%s'", width, height, title);
 
     amw_window_t *window = (amw_window_t *)amw_malloc(sizeof(amw_window_t));
 
@@ -163,8 +167,8 @@ amw_window_t *amw_window_create(const char *title, int32_t width, int32_t height
     window->height = height;
     window->title = strdup(title);
 
-    if (!hadal.api.window_create(window)) {
-        amw_window_destroy(window);
+    if (!hadal.api.create_window(window)) {
+        amw_hadal_destroy_window(window);
         return NULL;
     }
 
@@ -172,23 +176,22 @@ amw_window_t *amw_window_create(const char *title, int32_t width, int32_t height
     return window;
 }
 
-void amw_window_destroy(amw_window_t *window)
+void amw_hadal_destroy_window(amw_window_t *window)
 {
-    if (window) {
-        hadal.window_list = NULL; /* FIXME only one window allowed now */
-
-        hadal.api.window_destroy(window);
+    if (window != NULL && hadal.initialized) {
+        hadal.api.destroy_window(window);
         amw_free(window->title);
         amw_free(window);
+        hadal.window_list = NULL; /* FIXME only one window allowed now */
     }
 }
 
-bool amw_window_should_close(amw_window_t *window)
+bool amw_hadal_should_close(amw_window_t *window)
 {
     return window->should_close;
 }
 
-void amw_window_request_close(amw_window_t *window, bool request)
+void amw_hadal_request_close(amw_window_t *window, bool request)
 {
     window->should_close = request;
 }
@@ -214,6 +217,18 @@ bool amw_hadal_platform_supported(int32_t id)
     return AMW_FALSE;
 }
 
+/* renderer/vulkan.h */
+#ifdef AMW_NATIVE_VULKAN
+bool amw_vk_physical_device_presentation_support(VkPhysicalDevice device, uint32_t queue_family)
+{
+    if (!hadal.initialized)
+        return AMW_FALSE;
+
+    amw_assert(device != VK_NULL_HANDLE);
+
+    return hadal.api.physical_device_presentation_support(device, queue_family);
+}
+
 VkResult amw_vk_surface_create(VkInstance instance, 
                                amw_window_t *window, 
                                const VkAllocationCallbacks *allocator, 
@@ -228,29 +243,42 @@ VkResult amw_vk_surface_create(VkInstance instance,
     amw_assert(window != NULL);
     amw_assert(instance != VK_NULL_HANDLE);
 
-    return hadal.api.surface_create(instance, window, allocator, surface);
+    return hadal.api.create_surface(instance, window, allocator, surface);
 }
+#endif /* AMW_NATIVE_VULKAN */
+
+/* internal api */
 
 /* when i make updates to the api, 
  * it basically checks if i implemented everything 
  * for the target platform i'm testing in */
 bool hadal_debug_check_api_uptodate(const hadal_api_t *api)
 {
-    amw_assert(api != NULL);
-
     bool out = AMW_TRUE;
 
 #ifdef AMW_DEBUG
+    amw_assert(api != NULL);
     const char *plat = platform_string(api->id);
 
 #define HAPICHECK(fn) if (api->fn == NULL) { amw_log_warn("Missing call in Hadal internal api - '%s_%s'", plat, #fn); out = AMW_FALSE; }
     HAPICHECK(init)
     HAPICHECK(terminate)
-    HAPICHECK(window_create)
-    HAPICHECK(window_destroy)
+    HAPICHECK(create_window)
+    HAPICHECK(destroy_window)
     HAPICHECK(physical_device_presentation_support)
-    HAPICHECK(surface_create)
+    HAPICHECK(create_surface)
 #undef HAPICHECK
 #endif /* AMW_DEBUG */
     return out;
+}
+
+void hadal_input_framebuffer_resized_callback(amw_window_t *window, int32_t width, int32_t height)
+{
+    amw_assert(window);
+
+    window->width = width;
+    window->height = height;
+
+    if (window->callbacks.framebuffer_resized)
+        window->callbacks.framebuffer_resized(window->callbacks.rendering_data, window, width, height);
 }

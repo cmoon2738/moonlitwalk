@@ -62,6 +62,9 @@ static void default_callback(amw_log_t *log)
 
 void amw_log_init(void *output)
 {
+    if (logger.initialized)
+        return;
+
     if (output) 
         logger.userdata = output;
     else
@@ -76,8 +79,10 @@ void amw_log_init(void *output)
 
 void amw_log_terminate(void)
 {
-    amw_mutex_destroy(logger.lock);
-    amw_zero(logger);
+    if (logger.initialized) {
+        amw_mutex_destroy(logger.lock);
+        amw_zero(logger);
+    }
 }
 
 static void process_message(amw_log_t *log)

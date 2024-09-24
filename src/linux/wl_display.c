@@ -52,18 +52,18 @@ static const struct wl_registry_listener registry_listener = {
 };
 
 
-bool amw_wayland_connect(void)
+bool hadal_wayland_connect(void)
 {
     amw_log_verbose("Trying to connect to a Wayland display...");
 
     const hadal_api_t wayland = {
         .id = AMW_HADAL_PLATFORM_WAYLAND,
-        .init = amw_wayland_init,
-        .terminate = amw_wayland_terminate,
-        .window_create = amw_wayland_window_create,
-        .window_destroy = amw_wayland_window_destroy,
-        .physical_device_presentation_support = amw_wayland_vk_physical_device_presentation_support,
-        .surface_create = amw_wayland_vk_surface_create,
+        .init = hadal_wayland_init,
+        .terminate = hadal_wayland_terminate,
+        .create_window = hadal_wayland_create_window,
+        .destroy_window = hadal_wayland_destroy_window,
+        .physical_device_presentation_support = hadal_wayland_physical_device_presentation_support,
+        .create_surface = hadal_wayland_create_surface,
     };
 
     if (!hadal_debug_check_api_uptodate(&wayland)) {
@@ -84,7 +84,7 @@ bool amw_wayland_connect(void)
     return AMW_TRUE;
 }
 
-int32_t amw_wayland_init(void)
+int32_t hadal_wayland_init(void)
 {
     hadal.wl.registry = wl_display_get_registry(hadal.wl.display);
     wl_registry_add_listener(hadal.wl.registry, &registry_listener, NULL);
@@ -112,7 +112,7 @@ int32_t amw_wayland_init(void)
     return 0;
 }
 
-void amw_wayland_terminate(void)
+void hadal_wayland_terminate(void)
 {
     if (hadal.wl.shm)
         wl_shm_destroy(hadal.wl.shm);

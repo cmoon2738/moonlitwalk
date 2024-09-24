@@ -1,5 +1,6 @@
 sources += files(
     'hadal.c',
+    'lake.c',
     'main.c',
     'common/log.c',
 )

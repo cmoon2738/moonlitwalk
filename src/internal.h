@@ -5,6 +5,10 @@
 #include "system.h"
 #include "hadopelagic.h"
 
+#ifdef AMW_NATIVE_VULKAN
+    #include "renderer/vulkan.h"
+#endif
+
 #include "linux/wayland.h"
 
 #ifdef __cplusplus
@@ -16,6 +20,7 @@ struct amw_window {
     int32_t     width, height;
     char       *title;
 
+    amw_window_callbacks_t callbacks;
     bool should_close;
 
     AMW_WINDOW_WAYLAND_STATE
@@ -27,11 +32,13 @@ typedef struct hadal_api {
     int32_t  (*init)(void);
     void     (*terminate)(void);
 
-    bool     (*window_create)(amw_window_t *window);
-    void     (*window_destroy)(amw_window_t *window);
+    bool     (*create_window)(amw_window_t *window);
+    void     (*destroy_window)(amw_window_t *window);
     
-    bool     (*physical_device_presentation_support)(VkInstance instance, VkPhysicalDevice device, uint32_t queue_family);
-    VkResult (*surface_create)(VkInstance instance, amw_window_t *window, const VkAllocationCallbacks *allocator, VkSurfaceKHR *surface);
+#ifdef AMW_NATIVE_VULKAN
+    bool     (*physical_device_presentation_support)(VkPhysicalDevice device, uint32_t queue_family);
+    VkResult (*create_surface)(VkInstance instance, amw_window_t *window, const VkAllocationCallbacks *allocator, VkSurfaceKHR *surface);
+#endif /* AMW_NATIVE_VULKAN */
 } hadal_api_t;
 
 typedef struct hadopelagic {
@@ -47,6 +54,8 @@ typedef struct hadopelagic {
 
 /* global platform abstraction, display/input state */
 extern hadopelagic_t hadal;
+
+void hadal_input_framebuffer_resized_callback(amw_window_t *window, int32_t width, int32_t height);
 
 bool hadal_debug_check_api_uptodate(const hadal_api_t *api);
 

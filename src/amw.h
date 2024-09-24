@@ -630,174 +630,6 @@ AMW_INLINE float amw_swap_float(float x)
     #define amw_swap_floatBE(x) (x)
 #endif       
 
-#define amw_arraysize(array) (sizeof(array)/sizeof(array[0]))
-#define amw_clamp(x, a, b) (((x) < (a)) ? (a) : (((x) > (b)) ? (b) : (x)))
-#define amw_min(x, y) (((x) < (y)) ? (x) : (y))
-#define amw_max(x, y) (((x) > (y)) ? (x) : (y))
-#define amw_swap(type, a, b)   \
-    {                           \
-        type temp = a;          \
-        a = b;                  \
-        b = temp;               \
-    }
-
-#define amw_malloc  malloc
-#define amw_calloc  calloc
-#define amw_realloc realloc
-#define amw_free    free
-
-#define amw_memset  memset
-#define amw_memcpy  memcpy
-#define amw_memmove memmove
-#define amw_memcmp  memcmp
-
-#define amw_zero(x)  amw_memset(&(x), 0, sizeof((x)))
-#define amw_zerop(x) amw_memset((x), 0, sizeof(*(x)))
-#define amw_zeroa(x) amw_memset((x), 0, sizeof((x)))
-
-#define AMW_FALSE 0
-#define AMW_TRUE 1
-#ifndef __cplusplus
-    typedef _Bool bool;
-#endif
-
-typedef int32_t                 ivec2_t[2];
-typedef int32_t                 ivec3_t[3];
-typedef int32_t                 ivec4_t[4];
-
-typedef float                   vec2_t[2];
-typedef float                   vec3_t[3];
-typedef AMW_ALIGN_IF(16) float  vec4_t[4];
-
-/* quaternion of tensor 1 */
-typedef vec4_t                  versor_t;     /* |x, y, z, w| -> w is the last */
-
-typedef AMW_ALIGN_IF(16) vec2_t mat2_t[2];
-typedef vec3_t                  mat2x3_t[2];  /* [col (2), row (3)] */
-typedef vec4_t                  mat2x4_t[2];  /* [col (2), row (4)] */
-
-typedef vec3_t                  mat3_t[3];
-typedef vec2_t                  mat3x2_t[3];  /* [col (3), row (2)] */
-typedef vec4_t                  mat3x4_t[3];  /* [col (3), row (4)] */
-
-typedef AMW_ALIGN_MAT vec4_t    mat4_t[4];
-typedef vec2_t                  mat4x2_t[4];  /* [col (4), row (2)] */
-typedef vec3_t                  mat4x3_t[4];  /* [col (4), row (3)] */
-
-#define AMW_E         2.71828182845904523536028747135266250   /* e           */
-#define AMW_LOG2E     1.44269504088896340735992468100189214   /* log2(e)     */
-#define AMW_LOG10E    0.434294481903251827651128918916605082  /* log10(e)    */
-#define AMW_LN2       0.693147180559945309417232121458176568  /* loge(2)     */
-#define AMW_LN10      2.30258509299404568401799145468436421   /* loge(10)    */
-#define AMW_PI        3.14159265358979323846264338327950288   /* pi          */
-#define AMW_PI_2      1.57079632679489661923132169163975144   /* pi/2        */
-#define AMW_PI_4      0.785398163397448309615660845819875721  /* pi/4        */
-#define AMW_1_PI      0.318309886183790671537767526745028724  /* 1/pi        */
-#define AMW_2_PI      0.636619772367581343075535053490057448  /* 2/pi        */
-#define AMW_2_SQRTPI  1.12837916709551257389615890312154517   /* 2/sqrt(pi)  */
-#define AMW_SQRT2     1.41421356237309504880168872420969808   /* sqrt(2)     */
-#define AMW_SQRT1_2   0.707106781186547524400844362104849039  /* 1/sqrt(2)   */
-
-#define AMW_Ef        ((float)AMW_E)
-#define AMW_LOG2Ef    ((float)AMW_LOG2E)
-#define AMW_LOG10Ef   ((float)AMW_LOG10E)
-#define AMW_LN2f      ((float)AMW_LN2)
-#define AMW_LN10f     ((float)AMW_LN10)
-#define AMW_PIf       ((float)AMW_PI)
-#define AMW_PI_2f     ((float)AMW_PI_2)
-#define AMW_PI_4f     ((float)AMW_PI_4)
-#define AMW_1_PIf     ((float)AMW_1_PI)
-#define AMW_2_PIf     ((float)AMW_2_PI)
-#define AMW_2_SQRTPIf ((float)AMW_2_SQRTPI)
-#define AMW_SQRT2f    ((float)AMW_SQRT2)
-#define AMW_SQRT1_2f  ((float)AMW_SQRT1_2)
-
-#ifdef __GNUC__
-    #define AMW_PRINTF_FORMAT(fmtargnumber) __attribute__((format(__printf__, fmtargnumber, fmtargnumber + 1)))
-#else
-    #define AMW_PRINTF_FORMAT(fmtargnumber)
-#endif
-
-#ifndef AMW_LOG_USE_COLOR
-    #define AMW_LOG_USE_COLOR 1
-#endif
-
-#ifndef AMW_LOG_DISABLE_FUNCTION
-    #define __AMW_FUNCTION__ __FUNCTION__
-#else
-    #define __AMW_FUNCTION__ NULL
-#endif
-
-#ifndef AMW_LOG_DISABLE_FILE
-    #ifndef AMW_LOG_FULL_FILEPATH
-        #ifdef AMW_PLATFORM_WINDOWS
-            #define __AMW_FILE__ (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
-        #else
-            #define __AMW_FILE__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-        #endif
-    #else
-        /* if a full path should be logged */
-        #define __AMW_FILENAME__ __FILE__
-    #endif /* AMW_LOG_FULL_FILEPATH */
-#else
-    #define __AMW_FILENAME__ NULL
-#endif
-
-#ifndef AMW_LOG_DISABLE_LINE
-    #define __AMW_LINE__ __LINE__
-#else
-    #define __AMW_LINE__ 0
-#endif
-
-typedef struct amw_log {
-    va_list     ap;
-    const char *fmt;
-    const char *function;
-    const char *file;
-    struct tm  *time;
-    void       *userdata;
-    int32_t     line;
-    int32_t     level;
-} amw_log_t;
-
-typedef enum amw_log_level {
-    AMW_LOG_VERBOSE = 0,
-    AMW_LOG_DEBUG,
-    AMW_LOG_INFO,
-    AMW_LOG_WARN,
-    AMW_LOG_ERROR,
-    AMW_LOG_FATAL,
-} amw_log_level_t;
-
-void    amw_log_init(void *output);
-void    amw_log_terminate(void);
-
-void    amw_log_message(int32_t level, const char *function, const char *file, int32_t line, const char *fmt, ...) AMW_PRINTF_FORMAT(5);
-void    amw_log_raw(char *fmt, ...) AMW_PRINTF_FORMAT(1);
-char   *amw_log_va(char *fmt, ...) AMW_PRINTF_FORMAT(1);
-
-int32_t amw_log_level(void);
-void    amw_log_set_level(int32_t level);
-void    amw_log_set_quiet(bool silence);
-
-#ifndef AMW_LOG_DISABLE_OUTPUT
-#define amw_log_raw(...)     amw_log_raw(__VA_ARGS__)
-#define amw_log_verbose(...) amw_log_message(AMW_LOG_VERBOSE, __AMW_FUNCTION__, __AMW_FILE__, __AMW_LINE__, __VA_ARGS__)
-#define amw_log_debug(...)   amw_log_message(AMW_LOG_DEBUG,   __AMW_FUNCTION__, __AMW_FILE__, __AMW_LINE__, __VA_ARGS__)
-#define amw_log_info(...)    amw_log_message(AMW_LOG_INFO,    __AMW_FUNCTION__, __AMW_FILE__, __AMW_LINE__, __VA_ARGS__)
-#define amw_log_warn(...)    amw_log_message(AMW_LOG_WARN,    __AMW_FUNCTION__, __AMW_FILE__, __AMW_LINE__, __VA_ARGS__)
-#define amw_log_error(...)   amw_log_message(AMW_LOG_ERROR,   __AMW_FUNCTION__, __AMW_FILE__, __AMW_LINE__, __VA_ARGS__)
-#define amw_log_fatal(...)   amw_log_message(AMW_LOG_FATAL,   __AMW_FUNCTION__, __AMW_FILE__, __AMW_LINE__, __VA_ARGS__)
-#else
-#define amw_log_raw(...) 
-#define amw_log_verbose(...) 
-#define amw_log_debug(...) 
-#define amw_log_info(...)  
-#define amw_log_warn(...)  
-#define amw_log_error(...) 
-#define amw_log_fatal(...) 
-#endif
-
 #define AMW_MS_PER_SECOND   1000
 #define AMW_US_PER_SECOND   1000000
 #define AMW_NS_PER_SECOND   1000000000LL
@@ -1017,6 +849,231 @@ void    amw_log_set_quiet(bool silence);
 #else
     #define amw_cpu_pause_instruction()
 #endif
+
+#define amw_arraysize(array) (sizeof(array)/sizeof(array[0]))
+#define amw_clamp(x, a, b) (((x) < (a)) ? (a) : (((x) > (b)) ? (b) : (x)))
+#define amw_min(x, y) (((x) < (y)) ? (x) : (y))
+#define amw_max(x, y) (((x) > (y)) ? (x) : (y))
+#define amw_swap(type, a, b)   \
+    {                           \
+        type temp = a;          \
+        a = b;                  \
+        b = temp;               \
+    }
+
+#define amw_malloc  malloc
+#define amw_calloc  calloc
+#define amw_realloc realloc
+#define amw_free    free
+
+#define amw_memset  memset
+#define amw_memcpy  memcpy
+#define amw_memmove memmove
+#define amw_memcmp  memcmp
+
+#define amw_zero(x)  amw_memset(&(x), 0, sizeof((x)))
+#define amw_zerop(x) amw_memset((x), 0, sizeof(*(x)))
+#define amw_zeroa(x) amw_memset((x), 0, sizeof((x)))
+
+#define AMW_FALSE 0
+#define AMW_TRUE 1
+#ifndef __cplusplus
+    typedef _Bool bool;
+#endif
+
+typedef int32_t                 ivec2_t[2];
+typedef int32_t                 ivec3_t[3];
+typedef int32_t                 ivec4_t[4];
+
+typedef float                   vec2_t[2];
+typedef float                   vec3_t[3];
+typedef AMW_ALIGN_IF(16) float  vec4_t[4];
+
+/* quaternion of tensor 1 */
+typedef vec4_t                  versor_t;     /* |x, y, z, w| -> w is the last */
+
+typedef AMW_ALIGN_IF(16) vec2_t mat2_t[2];
+typedef vec3_t                  mat2x3_t[2];  /* [col (2), row (3)] */
+typedef vec4_t                  mat2x4_t[2];  /* [col (2), row (4)] */
+
+typedef vec3_t                  mat3_t[3];
+typedef vec2_t                  mat3x2_t[3];  /* [col (3), row (2)] */
+typedef vec4_t                  mat3x4_t[3];  /* [col (3), row (4)] */
+
+typedef AMW_ALIGN_MAT vec4_t    mat4_t[4];
+typedef vec2_t                  mat4x2_t[4];  /* [col (4), row (2)] */
+typedef vec3_t                  mat4x3_t[4];  /* [col (4), row (3)] */
+
+#define AMW_E         2.71828182845904523536028747135266250   /* e           */
+#define AMW_LOG2E     1.44269504088896340735992468100189214   /* log2(e)     */
+#define AMW_LOG10E    0.434294481903251827651128918916605082  /* log10(e)    */
+#define AMW_LN2       0.693147180559945309417232121458176568  /* loge(2)     */
+#define AMW_LN10      2.30258509299404568401799145468436421   /* loge(10)    */
+#define AMW_PI        3.14159265358979323846264338327950288   /* pi          */
+#define AMW_PI_2      1.57079632679489661923132169163975144   /* pi/2        */
+#define AMW_PI_4      0.785398163397448309615660845819875721  /* pi/4        */
+#define AMW_1_PI      0.318309886183790671537767526745028724  /* 1/pi        */
+#define AMW_2_PI      0.636619772367581343075535053490057448  /* 2/pi        */
+#define AMW_2_SQRTPI  1.12837916709551257389615890312154517   /* 2/sqrt(pi)  */
+#define AMW_SQRT2     1.41421356237309504880168872420969808   /* sqrt(2)     */
+#define AMW_SQRT1_2   0.707106781186547524400844362104849039  /* 1/sqrt(2)   */
+
+#define AMW_Ef        ((float)AMW_E)
+#define AMW_LOG2Ef    ((float)AMW_LOG2E)
+#define AMW_LOG10Ef   ((float)AMW_LOG10E)
+#define AMW_LN2f      ((float)AMW_LN2)
+#define AMW_LN10f     ((float)AMW_LN10)
+#define AMW_PIf       ((float)AMW_PI)
+#define AMW_PI_2f     ((float)AMW_PI_2)
+#define AMW_PI_4f     ((float)AMW_PI_4)
+#define AMW_1_PIf     ((float)AMW_1_PI)
+#define AMW_2_PIf     ((float)AMW_2_PI)
+#define AMW_2_SQRTPIf ((float)AMW_2_SQRTPI)
+#define AMW_SQRT2f    ((float)AMW_SQRT2)
+#define AMW_SQRT1_2f  ((float)AMW_SQRT1_2)
+
+#ifdef __GNUC__
+    #define AMW_PRINTF_FORMAT(fmtargnumber) __attribute__((format(__printf__, fmtargnumber, fmtargnumber + 1)))
+#else
+    #define AMW_PRINTF_FORMAT(fmtargnumber)
+#endif
+
+#ifndef AMW_LOG_USE_COLOR
+    #define AMW_LOG_USE_COLOR 1
+#endif
+
+#ifndef AMW_LOG_DISABLE_FUNCTION
+    #define __AMW_FUNCTION__ __FUNCTION__
+#else
+    #define __AMW_FUNCTION__ NULL
+#endif
+
+#ifndef AMW_LOG_DISABLE_FILE
+    #ifndef AMW_LOG_FULL_FILEPATH
+        #ifdef AMW_PLATFORM_WINDOWS
+            #define __AMW_FILE__ (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
+        #else
+            #define __AMW_FILE__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+        #endif
+    #else
+        /* if a full path should be logged */
+        #define __AMW_FILENAME__ __FILE__
+    #endif /* AMW_LOG_FULL_FILEPATH */
+#else
+    #define __AMW_FILENAME__ NULL
+#endif
+
+#ifndef AMW_LOG_DISABLE_LINE
+    #define __AMW_LINE__ __LINE__
+#else
+    #define __AMW_LINE__ 0
+#endif
+
+typedef struct amw_log {
+    va_list     ap;
+    const char *fmt;
+    const char *function;
+    const char *file;
+    struct tm  *time;
+    void       *userdata;
+    int32_t     line;
+    int32_t     level;
+} amw_log_t;
+
+typedef enum amw_log_level {
+    AMW_LOG_VERBOSE = 0,
+    AMW_LOG_DEBUG,
+    AMW_LOG_INFO,
+    AMW_LOG_WARN,
+    AMW_LOG_ERROR,
+    AMW_LOG_FATAL,
+} amw_log_level_t;
+
+void    amw_log_init(void *output);
+void    amw_log_terminate(void);
+
+void    amw_log_message(int32_t level, const char *function, const char *file, int32_t line, const char *fmt, ...) AMW_PRINTF_FORMAT(5);
+void    amw_log_raw(char *fmt, ...) AMW_PRINTF_FORMAT(1);
+char   *amw_log_va(char *fmt, ...) AMW_PRINTF_FORMAT(1);
+
+int32_t amw_log_level(void);
+void    amw_log_set_level(int32_t level);
+void    amw_log_set_quiet(bool silence);
+
+#ifndef AMW_LOG_DISABLE_OUTPUT
+#define amw_log_raw(...)     amw_log_raw(__VA_ARGS__)
+#define amw_log_verbose(...) amw_log_message(AMW_LOG_VERBOSE, __AMW_FUNCTION__, __AMW_FILE__, __AMW_LINE__, __VA_ARGS__)
+#define amw_log_debug(...)   amw_log_message(AMW_LOG_DEBUG,   __AMW_FUNCTION__, __AMW_FILE__, __AMW_LINE__, __VA_ARGS__)
+#define amw_log_info(...)    amw_log_message(AMW_LOG_INFO,    __AMW_FUNCTION__, __AMW_FILE__, __AMW_LINE__, __VA_ARGS__)
+#define amw_log_warn(...)    amw_log_message(AMW_LOG_WARN,    __AMW_FUNCTION__, __AMW_FILE__, __AMW_LINE__, __VA_ARGS__)
+#define amw_log_error(...)   amw_log_message(AMW_LOG_ERROR,   __AMW_FUNCTION__, __AMW_FILE__, __AMW_LINE__, __VA_ARGS__)
+#define amw_log_fatal(...)   amw_log_message(AMW_LOG_FATAL,   __AMW_FUNCTION__, __AMW_FILE__, __AMW_LINE__, __VA_ARGS__)
+#else
+#define amw_log_raw(...) 
+#define amw_log_verbose(...) 
+#define amw_log_debug(...) 
+#define amw_log_info(...)  
+#define amw_log_warn(...)  
+#define amw_log_error(...) 
+#define amw_log_fatal(...) 
+#endif
+
+typedef enum {
+    AMW_SUCCESS = 0,
+    AMW_ERROR = -1,
+    /* TODO */
+} amw_result_t;
+
+#define amw_optional(t) struct { t value;   bool valid; }
+#define amw_result(t)   struct { t payload; int32_t error; }
+#define amw_slice(t)    struct { t *ptr;    size_t len; }
+
+typedef amw_slice(uint8_t) byte_slice_t;
+
+typedef struct amw_arena {
+    uint8_t *base;
+    uint8_t *top;
+} amw_arena_t;
+
+#ifdef __GNUC__
+    AMW_INLINE size_t amw_assert_smaller_helper(size_t a, size_t b) {
+        amw_assert(a < b);
+        return a;
+    }
+    #define amw_slice_get(s, i) s.ptr[amw_assert_smaller_helper(i, s.len)]
+    #define amw_slice_copy(d, s) amw_memcpy( \
+            d.ptr, s.ptr,                    \
+            amw_assert_smaller_helper(       \
+                sizeof(*s.ptr) * s.len,      \
+                sizeof(*d.ptr) * d.len + 1   \
+            )                                \
+        )
+#else
+    #define amw_slice_get(s, i) s.ptr[i]
+    #define amw_slice_copy(d, s) amw_memcpy(d.ptr, s.ptr, sizeof(*s.ptr) * s.len)
+#endif /* __GNUC__ */
+
+#define amw_as_bytes(ptr) ((byte_slice_t) { \
+        .ptr = (uint8_t *)ptr,              \
+        .len = sizeof(*ptr)                 \
+    })
+#define amw_array_as_bytes(ptr) ((byte_slice_t) { \
+        .ptr = (uint8_t *)ptr,                    \
+        .len = sizeof(ptr)                        \
+    })
+
+AMW_INLINE amw_arena_t amw_arena_init(void *mem, size_t size) {
+    return (amw_arena_t){ .base = mem, .top = (uint8_t *)mem + size };
+}
+
+#ifdef __GNUC__
+    __attribute__((malloc, alloc_size(2), alloc_align(3)))
+#endif
+void *amw_arena_alloc(amw_arena_t *arena, size_t size, size_t align);
+
+#define amw_arena_create(t, a) (t *)amw_arena_alloc(a, sizeof(t), alignof(t))
+#define amw_arena_create_array(t, a, n) \
+    (t *)amw_arena_alloc(a, n * sizeof(t), alignof(t))
 
 #ifdef __cplusplus
 }

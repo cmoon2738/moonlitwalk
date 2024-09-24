@@ -1,12 +1,7 @@
 #include "vulkan.h"
 
+#ifdef AMW_ENABLE_VALIDATION_LAYERS
 static VkDebugUtilsMessengerEXT validation_messenger = VK_NULL_HANDLE;
-
-#ifdef AMW_DEBUG
-static bool enable_validation = AMW_TRUE;
-#else
-static bool enable_validation = AMW_FALSE;
-#endif
 
 /* layer message to string */
 static const char* msg_to_string(VkDebugUtilsMessageTypeFlagsEXT type)
@@ -63,9 +58,6 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_utils_callback(VkDebugUtilsMessageSe
 
 void amw_vk_create_validation_layers(VkInstance instance)
 {
-    if (!enable_validation)
-        return;
-
     VkDebugUtilsMessengerCreateInfoEXT callback_info = {
         .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
         .pNext = NULL,
@@ -86,15 +78,13 @@ void amw_vk_create_validation_layers(VkInstance instance)
 
 void amw_vk_destroy_validation_layers(VkInstance instance)
 {
-    if (!enable_validation)
-        return;
-
     if (validation_messenger != VK_NULL_HANDLE) {
         vkDestroyDebugUtilsMessengerEXT(instance, validation_messenger, NULL);
         validation_messenger = VK_NULL_HANDLE;
     }
     amw_log_debug("Vulkan validation layers destroyed");
 }
+#endif /* AMW_ENABLE_VALIDATION_LAYERS */
 
 const char *amw_vkresult(VkResult code)
 {

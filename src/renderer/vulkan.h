@@ -2,6 +2,7 @@
 #define _amw_vulkan_h_
 
 #include "../amw.h"
+#include "../hadopelagic.h"
 
 #ifndef VK_NO_PROTOTYPES
     #define VK_NO_PROTOTYPES
@@ -41,6 +42,76 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#ifdef AMW_DEBUG
+    #ifndef AMW_ENABLE_VALIDATION_LAYERS
+        #define AMW_ENABLE_VALIDATION_LAYERS
+    #endif
+#endif
+
+#define MAX_FRAMES   2
+
+/* for cube demo */
+typedef struct { mat2_t view; } ubo_t;
+typedef struct { vec2_t pos; vec4_t color; } vertex_t;
+typedef uint16_t index_t;
+
+typedef amw_slice(VkImage)      VkImageSlice;
+typedef amw_slice(VkImageView)  VkImageViewSlice;
+
+typedef struct amw_vulkan {
+    VkInstance              instance;
+    VkSurfaceKHR            surface;
+    VkPhysicalDevice        physical_device;
+    VkDevice                device;
+
+    VkQueue                 graphics_queue;
+    VkQueue                 present_queue;
+
+    VkSwapchainKHR          swapchain;
+    VkImageSlice            swapchain_image;
+    VkImageViewSlice        swapchain_image_views;
+    amw_arena_t             base_swapchain_arena;
+
+    VkImage                 color_image;
+    VkDeviceMemory          color_image_memory;
+    VkImageView             color_image_view;
+
+    VkDescriptorSetLayout   descriptor_set_layout;
+    VkPipelineLayout        pipeline_layout;
+    VkPipeline              graphics_pipeline;
+
+    VkBuffer                vertex_buffer;
+    VkDeviceMemory          vertex_buffer_memory;
+    VkBuffer                index_buffer;
+    VkDeviceMemory          index_buffer_memory;
+
+    VkBuffer                uniform_buffers[MAX_FRAMES];
+    VkDeviceMemory          uniform_buffers_memory[MAX_FRAMES];
+    void                   *uniform_buffers_mapped[MAX_FRAMES];
+
+    VkDescriptorPool        descriptor_pool;
+    VkDescriptorSet         descriptor_sets[MAX_FRAMES];
+
+    VkCommandPool           command_pool;
+    VkCommandBuffer         command_buffers[MAX_FRAMES];
+
+    VkSemaphore             image_available_semaphores[MAX_FRAMES];
+    VkSemaphore             render_finished_semaphores[MAX_FRAMES];
+    VkFence                 fences[MAX_FRAMES];
+
+    VkSampleCountFlagBits   msaa_samples;
+
+    uint32_t width, height;
+    uint32_t current_frame;
+    bool     framebuffer_resized;
+    bool     initialized;
+} amw_vulkan_t;
+
+bool amw_vk_init(amw_vulkan_t *vk, amw_window_t *window);
+void amw_vk_terminate(amw_vulkan_t *vk);
+
+void amw_vk_draw_frame(amw_vulkan_t *vk);
+
 /* loads the Vulkan driver and initializes the API */
 bool     amw_vk_open_library(void);
 void     amw_vk_close_library(void);
@@ -56,8 +127,18 @@ void amw_vk_load_instance_pointers(VkInstance instance);
 void amw_vk_load_device_pointers(VkDevice device);
 
 /* vulkan validation layers, by default enabled in debug builds */
+#ifdef AMW_ENABLE_VALIDATION_LAYERS
 void amw_vk_create_validation_layers(VkInstance instance);
 void amw_vk_destroy_validation_layers(VkInstance instance);
+#endif /* AMW_ENABLE_VALIDATION_LAYERS */
+
+/* resolved by hadal */
+bool amw_vk_physical_device_presentation_support(VkPhysicalDevice device, uint32_t queue_family);
+VkResult amw_vk_surface_create(VkInstance instance, amw_window_t *window, const VkAllocationCallbacks *allocator, VkSurfaceKHR *surface);
+
+/* called by hadal when the framebuffer resizes
+ * TODO it probably should be done in a more clean way, but nah */
+void amw_vk_framebuffer_resized_callback(void *data, amw_window_t *window, int32_t width, int32_t height);
 
 #if defined(AMW_DEBUG) || defined(_DEBUG)
     #define AMW_VK_VERIFY(x) {                                                      \

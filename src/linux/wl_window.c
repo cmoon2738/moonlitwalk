@@ -1,21 +1,24 @@
 #include "../internal.h"
+#include "renderer/vulkan.h"
 
-bool amw_wayland_window_create(amw_window_t *window)
+bool hadal_wayland_create_window(amw_window_t *window)
 {
-    return 0;
+    amw_log_error("Wayland failed to create a window state.");
+    return AMW_FALSE;
 }
 
-void amw_wayland_window_destroy(amw_window_t *window)
+void hadal_wayland_destroy_window(amw_window_t *window)
 {
 
 }
 
-bool amw_wayland_vk_physical_device_presentation_support(VkInstance instance, VkPhysicalDevice device, uint32_t queue_family)
+#ifdef AMW_NATIVE_VULKAN
+bool hadal_wayland_physical_device_presentation_support(VkPhysicalDevice device, uint32_t queue_family)
 {
-    return 0;
+    return vkGetPhysicalDeviceWaylandPresentationSupportKHR(device, queue_family, hadal.wl.display);
 }
 
-VkResult amw_wayland_vk_surface_create(VkInstance instance, 
+VkResult hadal_wayland_create_surface(VkInstance instance, 
                                        amw_window_t *window, 
                                        const VkAllocationCallbacks *allocator, 
                                        VkSurfaceKHR *surface)
@@ -35,3 +38,4 @@ VkResult amw_wayland_vk_surface_create(VkInstance instance,
 
     return res;
 }
+#endif /* AMW_NATIVE_VULKAN */

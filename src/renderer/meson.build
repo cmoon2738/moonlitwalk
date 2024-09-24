@@ -6,6 +6,7 @@ if not dependency('vulkan', required : get_option('vulkan')).found()
 endif
 
 sources += files(
+    'vk_main.c',
     'vk_library.c',
     'vk_validation.c',
 )
