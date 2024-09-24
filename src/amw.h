@@ -769,13 +769,16 @@ typedef enum amw_log_level {
     AMW_LOG_FATAL,
 } amw_log_level_t;
 
+void    amw_log_init(void *output);
+void    amw_log_terminate(void);
+
 void    amw_log_message(int32_t level, const char *function, const char *file, int32_t line, const char *fmt, ...) AMW_PRINTF_FORMAT(5);
 void    amw_log_raw(char *fmt, ...) AMW_PRINTF_FORMAT(1);
 char   *amw_log_va(char *fmt, ...) AMW_PRINTF_FORMAT(1);
 
 int32_t amw_log_level(void);
 void    amw_log_set_level(int32_t level);
-void    amw_log_set_quiet(bool enable);
+void    amw_log_set_quiet(bool silence);
 
 #ifndef AMW_LOG_DISABLE_OUTPUT
 #define amw_log_raw(...)     amw_log_raw(__VA_ARGS__)
@@ -814,10 +817,9 @@ void    amw_log_set_quiet(bool enable);
     /* C11 or later */
     #if defined _Static_assert
         #define amw_static_assert _Static_assert
-    #endif
 
     /* GCC 4.6 or later */
-    #if defined(__GNUC__) && (__GNUC__ > 4 || __GNUC__ == 4 && defined __GNUC_MINOR__ && __GNUC_MINOR >= 6)
+    #elif defined(__GNUC__) && (__GNUC__ > 4 || __GNUC__ == 4 && defined __GNUC_MINOR__ && __GNUC_MINOR >= 6)
         /* It will work but it will throw a warning:
          * warning: ISO C90 does not support '_Static_assert' [-Wpedantic] */
         #define amw_static_assert _Static_assert
@@ -904,35 +906,6 @@ void    amw_log_set_quiet(bool enable);
 #else
     #error Unknown assertion level.
 #endif
-
-#define amw_optional(t) struct { t value; bool valid; }
-#define amw_result(t)   struct { t payload; int32_t error; }
-#define amw_slice(t)    struct { t *ptr; size_t len; }
-typedef amw_slice(uint8_t) amw_slice_t;
-
-#ifdef __GNUC__ 
-    static size_t amw_assert_smaller_internal(size_t a, size_t b) {
-        amw_enabled_assert(a < b);
-        return a;
-    }
-    #define amw_slice_get(s, i) s.ptr[amw_assert_smaller_internal(i, s.len)]
-    #define amw_slice_copy(d, s) amw_memcpy(            \
-            d.ptr, s.ptr, amw_assert_smaller_internal(  \
-                sizeof(*s.ptr) * s.len,                 \
-                sizeof(*d.ptr) * d.len + 1              \
-        )                                               \
-    )
-#else
-    #define amw_slice_get(s, i) s.ptr[i]
-    #define amw_slice_copy(d, s) amw_memcpy(d.ptr, s.ptr, sizeof(*s.ptr) * s.len)
-#endif /* __GNUC__ */
-
-#define amw_slice_as_bytes(ptr) ((amw_slice_t){         \
-        .ptr = (uint8_t *)ptr,                          \
-        .len = sizeof(*ptr) })
-#define amw_slice_array_as_bytes(ptr) ((amw_slice_t){   \
-        .ptr = (uint8_t *)ptr,                          \
-        .len = sizeof(ptr) })
 
 /**
  * A compiler barrier prevents the compiler from reordering reads and writes

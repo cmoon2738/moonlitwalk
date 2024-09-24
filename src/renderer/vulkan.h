@@ -41,22 +41,13 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#if defined(AMW_DEBUG) || defined(_DEBUG)
-    #define AMW_VK_VERIFY(x) {                                                      \
-        VkResult res = (x);                                                         \
-        if (res != VK_SUCCESS) {                                                    \
-            amw_log_error("VkResult verification failed: %s", mvk_get_error(res));  \
-            amw_assert(res == VK_SUCCESS);                                          \
-        }                                                                           \
-    }
-#else
-    #define AMW_VK_VERIFY(x) (void)(x)
-#endif
-
 /* loads the Vulkan driver and initializes the API */
 bool     amw_vk_open_library(void);
 void     amw_vk_close_library(void);
 uint32_t amw_vk_version(void);
+
+/* returns a string for a given VkResult */
+const char *amw_vkresult(VkResult code);
 
 /* loads instance functions */
 void amw_vk_load_instance_pointers(VkInstance instance);
@@ -67,6 +58,18 @@ void amw_vk_load_device_pointers(VkDevice device);
 /* vulkan validation layers, by default enabled in debug builds */
 void amw_vk_create_validation_layers(VkInstance instance);
 void amw_vk_destroy_validation_layers(VkInstance instance);
+
+#if defined(AMW_DEBUG) || defined(_DEBUG)
+    #define AMW_VK_VERIFY(x) {                                                      \
+        VkResult res = (x);                                                         \
+        if (res != VK_SUCCESS) {                                                    \
+            amw_log_error("VkResult verification failed: %s", amw_vkresult(res));   \
+            amw_assert(res == VK_SUCCESS);                                          \
+        }                                                                           \
+    }
+#else
+    #define AMW_VK_VERIFY(x) (void)(x)
+#endif
 
 #if defined(VK_VERSION_1_0)
 extern PFN_vkAllocateCommandBuffers vkAllocateCommandBuffers;

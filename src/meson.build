@@ -1,5 +1,7 @@
 sources += files(
+    'hadal.c',
     'main.c',
+    'common/log.c',
 )
 
 # Unix
@@ -87,7 +89,10 @@ elif sys == 'linux' or sys == 'bsd'
     build_wayland_ws = (dep_wayland_client.found() and dep_wayland_protocols.found() and
                         wayland_scanner.found() and dep_xkbcommon.found())
     if build_wayland_ws
-        #sources += files('')
+        sources += files(
+            'linux/wl_display.c',
+            'linux/wl_window.c',
+        )
 
         defs += [ 
             '-DAMW_NATIVE_WAYLAND', 

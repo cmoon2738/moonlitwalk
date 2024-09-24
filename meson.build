@@ -53,7 +53,7 @@ subdir('src')
 moonlitwalk = executable('moonlitwalk',
     [ sources, shaders ],
     c_args : [ defs, common_c_args ],
-    dependencies : [ display_deps, audio_deps ],
+    dependencies : [ platform, audio_deps ],
     include_directories : include,
     install : false)
 

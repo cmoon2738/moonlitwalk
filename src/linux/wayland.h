@@ -13,8 +13,12 @@ extern "C" {
 #include <xdg-shell-protocol.h>
 
 typedef struct amw_wayland_window {
-    struct xdg_surface  *surface;
-    struct xdg_toplevel *toplevel;
+    struct wl_surface   *surface;
+
+    struct {
+        struct xdg_surface  *surface;
+        struct xdg_toplevel *toplevel;
+    } xdg;
 } amw_wayland_window_t;
 #define AMW_WINDOW_WAYLAND_STATE amw_wayland_window_t wl;
 
@@ -25,19 +29,22 @@ typedef struct amw_wayland {
     struct wl_shm       *shm;
     struct xdg_wm_base  *shell;
 } amw_wayland_t;
-extern amw_wayland_t wl;
+#define AMW_HADAL_WAYLAND_STATE amw_wayland_t wl;
 
-int32_t     amw_wayland_connect(void);
+bool        amw_wayland_connect(void);
 
 int32_t     amw_wayland_init(void);
 void        amw_wayland_terminate(void);
 
 bool        amw_wayland_window_create(amw_window_t *window);
 void        amw_wayland_window_destroy(amw_window_t *window);
-VkResult    amw_wayland_vk_surface_create(amw_window_t *window, VkInstance instance, const VkAllocationCallbacks *allocator, VkSurfaceKHR *surface);
+
+bool        amw_wayland_vk_physical_device_presentation_support(VkInstance instance, VkPhysicalDevice device, uint32_t queue_family);
+VkResult    amw_wayland_vk_surface_create(VkInstance instance, amw_window_t *window, const VkAllocationCallbacks *allocator, VkSurfaceKHR *surface);
 #else
     /* null the wayland state */
     #define AMW_WINDOW_WAYLAND_STATE 
+    #define AMW_HADAL_WAYLAND_STATE 
 #endif /* AMW_NATIVE_WAYLAND */
 
 #ifdef __cplusplus
