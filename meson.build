@@ -1,8 +1,8 @@
-project('A Moonlit Walk', [ 'c', 'cpp' ],
+project('A Moonlit Walk', [ 'c' ],
     version : '2024',
     default_options : [ 
         'c_std=c99',
-        'cpp_std=c++17',
+        #'cpp_std=c++17',
         'buildtype=debugoptimized',
         'default_library=static',
         'warning_level=3',
@@ -13,8 +13,8 @@ sys = host_machine.system()
 fs = import('fs')
 
 sources = []
+assembly = []
 shaders = []
-include = include_directories([ 'src', 'external' ])
 
 defs = []
 common_c_args = [
@@ -51,15 +51,16 @@ subdir('shaders')
 subdir('src')
 
 moonlitwalk = executable('moonlitwalk',
-    [ sources, shaders ],
+    [ sources, shaders, assembly ],
     c_args : [ defs, common_c_args ],
     dependencies : [ platform, audio_deps ],
-    include_directories : include,
+    include_directories : 'include',
     install : false)
 
 summary({
     'System type' : systype,
     'Build type' : get_option('buildtype'),
+    'Assembly config' : assembly_config,
 }, bool_yn : true, section : 'Engine')
 
 summary({

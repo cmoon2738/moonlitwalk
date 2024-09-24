@@ -35,7 +35,7 @@ void amw_cpu_count(int32_t *threads, int32_t *cores, int32_t *packages);
  */
 typedef struct amw_mutex amw_mutex_t;
 
-amw_mutex_t *amw_mutex_create(void);
+amw_mutex_t *amw_mutex_create(amw_arena_t *arena);
 void         amw_mutex_lock(amw_mutex_t *mutex);     /* will block */
 bool         amw_mutex_try_lock(amw_mutex_t *mutex); /* no blocking */
 void         amw_mutex_unlock(amw_mutex_t *mutex);
@@ -51,7 +51,7 @@ void         amw_mutex_destroy(amw_mutex_t *mutex);
  */
 typedef struct amw_semaphore amw_semaphore_t;
 
-amw_semaphore_t *amw_semaphore_create(uint32_t initvalue);
+amw_semaphore_t *amw_semaphore_create(amw_arena_t *arena, uint32_t initvalue);
 void             amw_semaphore_wait(amw_semaphore_t *sem);
 bool             amw_semaphore_wait_timeout(amw_semaphore_t *sem, int32_t ms);
 bool             amw_semaphore_wait_timeout_ns(amw_semaphore_t *sem, int32_t ns);

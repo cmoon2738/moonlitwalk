@@ -1,5 +1,7 @@
-#include "vulkan.h"
-#include "../hadopelagic.h"
+#include <moonlitwalk/vk.h>
+#include <moonlitwalk/hadopelagic.h>
+
+amw_arena_t temporary_rendering_arena;
 
 #ifdef AMW_ENABLE_VALIDATION_LAYERS
 static bool validation_layers_enabled = AMW_TRUE;
@@ -91,6 +93,7 @@ void amw_vk_terminate(amw_vulkan_t *vk)
 
     /* destroy instance */
     amw_vk_close_library();
+    amw_arena_free(&vk->swapchain_arena);
 }
 
 void amw_vk_draw_frame(amw_vulkan_t *vk)

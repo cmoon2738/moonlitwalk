@@ -1,8 +1,10 @@
 sources += files(
-    'hadal.c',
     'lake.c',
     'main.c',
-    'common/log.c',
+    'core/arena.c',
+    'core/hadal.c',
+    'core/log.c',
+    'core/sewing.c',
 )
 
 # Unix
@@ -176,5 +178,6 @@ else
     error('Platform not recognized: ' + sys)
 endif
 
+subdir('asm')
 subdir('audio')
 subdir('renderer')

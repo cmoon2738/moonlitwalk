@@ -1,0 +1,117 @@
+#ifndef _amw_sewing_h_
+#define _amw_sewing_h_
+
+#include "amw.h"
+#include "system.h"
+
+/* TODO
+ * I have already made a working x86, x86_64, arm and aarch64 implementation
+ * for this fiber system, and it's working fine. But before i'll move this solution
+ * here into this project, i'll have to get a suplement for std::atomics that
+ * will work in C99. And i'll probably do some fine tuning on this api or the 
+ * internal implementation before this feature is complete.
+ *
+ * I'll move the assembly already into this repository.
+ */
+
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
+typedef struct amw_sewing amw_sewing_t;
+
+typedef void  *amw_sew_chain_t;
+typedef void  *amw_procedure_argument_t;
+typedef void (*PFN_amw_procedure)(amw_procedure_argument_t);
+
+typedef void (*PFN_amw_main_procedure)(amw_sewing_t *sewing,
+                                       amw_thread_t *threads,
+                                       size_t thread_count,
+                                       amw_procedure_argument_t argument);
+
+typedef struct amw_sew_stitch {
+    PFN_amw_procedure         procedure;
+    amw_procedure_argument_t  argument;
+    const char               *name;
+} amw_sew_stitch_t;
+
+/**
+ * Run 'stitch_count' amount of jobs (passed in the flat array 'stitches'),
+ * and wait for all of them to finish.
+ *
+ * This will block until all items have been queued in the job queue.
+ *
+ * 'amw_sewing_t' is the opaque pointer passed into the call to sew it's
+ * 'main_procedure' procedure.
+ */
+void amw_sew_stitches_and_wait(amw_sewing_t *sewing, 
+                               amw_sew_stitch_t *stitches, 
+                               size_t stitch_count);
+
+/**
+ * Run 'stitch_count' amount of jobs (passed in the flat array 'stitches'),
+ * and if chain is non-null, then set chain to a value that can be used to wait 
+ * for the jobs in a call to 'mw_sew_wait'.
+ *
+ * This will block until all items have been queued in the job queue.
+ */
+void amw_sew_stitches(amw_sewing_t *sewing, 
+                      amw_sew_stitch_t *stitches, 
+                      size_t stitch_count, 
+                      amw_sew_chain_t *chain);
+
+/**
+ * If chain is not NULL, then wait for all the jobs attached to chain
+ * to finish running. If chain is null, then the call may or may not be 
+ * yield to the job system before returning.
+ */
+void amw_sew_wait(amw_sewing_t *sewing, amw_sew_chain_t chain);
+
+/**
+ * Used to get a chain that's not tied to any stitches.
+ *
+ * The chain is markes as "in progress", and will block 
+ * any call to 'amw_sew_wait()' until it is marked as finished.
+ */
+void amw_sew_external(amw_sewing_t *sewing, amw_sew_chain_t *chain);
+
+/**
+ * Used to mark a chain taken from 'amw_sew_external()' as finished.
+ *
+ * Once called, the chain is now invalid and calling again with
+ * this chain is probably not a good idea... fiber leaks etc.
+ */
+void amw_sew_external_finished(amw_sew_chain_t chain);
+
+/**
+ * 'amw_sew_it()' serves two purposes:
+ * 1) Entry point to the sewing system.
+ * 2) Get the amount of memory required for 'sewing_memory' (in bytes)
+ *
+ * When passed with a non-NULL value of 'sewing_memory', then it will initialize
+ * its internal state using the memory pointed to by 'sewing_memory'. It will create
+ * 'fiber_count' of fibers, using a stack of 'stack_bytes'. It will create 
+ * a threadsafe job queue with a size of (1 << log_2_job_count) jobs. It will then
+ * create and initialize 'thread_count' -1 (main) threads before calling 'main_procedure'
+ * with the arguments of 'sewing', 'threads', 'thread_count' and 'main_procedure_argument'.
+ * Where 'sewing' is an opaque pointer to the sewing system required by any call to the 
+ * sewing system. When the function returns then 'sewing_memory' may be deallocated.
+ *
+ * If 'sewing_memory' is NULL, then 'amw_sew_it' will return the amount of bytes needed
+ * for its internal state using 'thread_count' threads, 'fiber_count' fibers using a 
+ * stack size of 'stack_bytes', and a job queue of (1 << log_2_job_count) jobs.
+ * Create a buffer of that size and pass that into 'mw_sew_it' to start the sewing system.
+ */
+size_t amw_sew_it(void *sewing_memory, 
+                  size_t stack_bytes, 
+                  size_t thread_count,
+                  size_t log_2_job_count,
+                  size_t fiber_count,
+                  PFN_amw_main_procedure main_procedure,
+                  amw_procedure_argument_t main_procedure_argument);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
+
+#endif /* _amw_sewing_h_ */

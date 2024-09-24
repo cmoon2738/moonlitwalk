@@ -1,8 +1,8 @@
 #ifndef _amw_vulkan_h_
 #define _amw_vulkan_h_
 
-#include "../amw.h"
-#include "../hadopelagic.h"
+#include "amw.h"
+#include "hadopelagic.h"
 
 #ifndef VK_NO_PROTOTYPES
     #define VK_NO_PROTOTYPES
@@ -55,8 +55,8 @@ typedef struct { mat2_t view; } ubo_t;
 typedef struct { vec2_t pos; vec4_t color; } vertex_t;
 typedef uint16_t index_t;
 
-typedef amw_slice(VkImage)      VkImageSlice;
-typedef amw_slice(VkImageView)  VkImageViewSlice;
+//typedef amw_slice(VkImage)      VkImageSlice;
+//typedef amw_slice(VkImageView)  VkImageViewSlice;
 
 typedef struct amw_vulkan {
     VkInstance              instance;
@@ -68,9 +68,10 @@ typedef struct amw_vulkan {
     VkQueue                 present_queue;
 
     VkSwapchainKHR          swapchain;
-    VkImageSlice            swapchain_image;
-    VkImageViewSlice        swapchain_image_views;
-    amw_arena_t             base_swapchain_arena;
+    //VkImageSlice            swapchain_image;
+    //VkImageViewSlice        swapchain_image_views;
+
+    amw_arena_t             swapchain_arena;
 
     VkImage                 color_image;
     VkDeviceMemory          color_image_memory;
@@ -106,6 +107,10 @@ typedef struct amw_vulkan {
     bool     framebuffer_resized;
     bool     initialized;
 } amw_vulkan_t;
+
+/* maybe i should move it out of the vulkan backend
+ * it's supposed to be amw_arena_reset() every frame */
+extern amw_arena_t temporary_rendering_arena;
 
 bool amw_vk_init(amw_vulkan_t *vk, amw_window_t *window);
 void amw_vk_terminate(amw_vulkan_t *vk);

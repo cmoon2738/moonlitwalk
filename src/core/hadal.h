@@ -1,15 +1,12 @@
-#ifndef _amw_internal_h_
-#define _amw_internal_h_
+#ifndef _amw_hadal_h_
+#define _amw_hadal_h_
 
-#include "amw.h"
-#include "system.h"
-#include "hadopelagic.h"
+#include <moonlitwalk/amw.h>
+#include <moonlitwalk/system.h>
+#include <moonlitwalk/hadopelagic.h>
+#include <moonlitwalk/vk.h>
 
-#ifdef AMW_NATIVE_VULKAN
-    #include "renderer/vulkan.h"
-#endif
-
-#include "linux/wayland.h"
+#include "../linux/wayland.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,19 +45,22 @@ typedef struct hadopelagic {
 
     amw_mutex_t  *mutex;
     amw_window_t *window_list;
+    amw_arena_t   arena;
 
-    AMW_HADAL_WAYLAND_STATE
+    AMW_HADOPELAGIC_WAYLAND_STATE
 } hadopelagic_t;
 
 /* global platform abstraction, display/input state */
 extern hadopelagic_t hadal;
 
+/* callbacks hadal */
 void hadal_input_framebuffer_resized_callback(amw_window_t *window, int32_t width, int32_t height);
 
+/* debug hadal */
 bool hadal_debug_check_api_uptodate(const hadal_api_t *api);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
-#endif /* _amw_hadopelagic_h_ */
+#endif /* _amw_hadal_h_ */

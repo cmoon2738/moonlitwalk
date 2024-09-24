@@ -1,5 +1,5 @@
-#include "../internal.h"
-#include "linux/wayland.h"
+#include "../core/hadal.h"
+#include "wayland.h"
 
 #include <sys/timerfd.h>
 

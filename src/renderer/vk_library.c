@@ -1,7 +1,5 @@
-#include "../amw.h"
-#include "../system.h"
-
-#include "vulkan.h"
+#include <moonlitwalk/system.h>
+#include <moonlitwalk/vk.h>
 
 
 static void *loaded_module = NULL;

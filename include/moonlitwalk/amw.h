@@ -642,6 +642,12 @@ AMW_INLINE float amw_swap_float(float x)
 #define AMW_US_TO_NS(US)        (((uint64_t)(US)) * AMW_NS_PER_US)
 #define AMW_NS_TO_US(NS)        ((NS) / AMW_NS_PER_US)
 
+#ifdef __GNUC__
+    #define AMW_PRINTF_FORMAT(fmtargnumber) __attribute__((format(__printf__, fmtargnumber, fmtargnumber + 1)))
+#else
+    #define AMW_PRINTF_FORMAT(fmtargnumber)
+#endif
+
 #if defined static_assert
     #define amw_static_assert static_assert
 /* it's ugly, but should work as a fallback */
@@ -932,11 +938,46 @@ typedef vec3_t                  mat4x3_t[4];  /* [col (4), row (3)] */
 #define AMW_SQRT2f    ((float)AMW_SQRT2)
 #define AMW_SQRT1_2f  ((float)AMW_SQRT1_2)
 
-#ifdef __GNUC__
-    #define AMW_PRINTF_FORMAT(fmtargnumber) __attribute__((format(__printf__, fmtargnumber, fmtargnumber + 1)))
-#else
-    #define AMW_PRINTF_FORMAT(fmtargnumber)
-#endif
+typedef struct amw_slice amw_slice_t;
+struct amw_slice {
+    amw_slice_t *next;
+    size_t       count;
+    size_t       capacity;
+    uintptr_t    data[];
+};
+
+typedef struct amw_arena {
+    amw_slice_t *begin;
+    amw_slice_t *end;
+} amw_arena_t;
+
+#define AMW_SLICE_DEFAULT_CAPACITY (8*1024)
+#define AMW_ARENA_DA_INIT_CAP       256
+
+amw_slice_t *amw_slice_new(size_t capacity);
+void         amw_slice_free(amw_slice_t *slice);
+
+void    *amw_arena_alloc(amw_arena_t *a, size_t size_bytes);
+void    *amw_arena_realloc(amw_arena_t *a, void *oldptr, size_t old_size, size_t new_size);
+char    *amw_arena_strdup(amw_arena_t *a, const char *str);
+void    *amw_arena_memdup(amw_arena_t *a, void *data, size_t size_bytes);
+char    *amw_arena_sprintf(amw_arena_t *a, const char *fmt, ...) AMW_PRINTF_FORMAT(2);
+
+void     amw_arena_reset(amw_arena_t *a);
+void     amw_arena_free(amw_arena_t *a);
+
+#define arena_da_append(a, da, item)                                                              \
+    do {                                                                                          \
+        if ((da)->count >= (da)->capacity) {                                                      \
+            size_t new_capacity = (da)->capacity == 0 ? AMW_ARENA_DA_INIT_CAP : (da)->capacity*2; \
+            (da)->items = amw_cast_ptr((da)->items)amw_arena_realloc(                             \
+                (a), (da)->items,                                                                 \
+                (da)->capacity*sizeof(*(da)->items),                                              \
+                new_capacity*sizeof(*(da)->items));                                               \
+            (da)->capacity = new_capacity;                                                        \
+        }                                                                                         \
+        (da)->items[(da)->count++] = (item);                                                      \
+    } while (0)
 
 #ifndef AMW_LOG_USE_COLOR
     #define AMW_LOG_USE_COLOR 1
@@ -957,10 +998,10 @@ typedef vec3_t                  mat4x3_t[4];  /* [col (4), row (3)] */
         #endif
     #else
         /* if a full path should be logged */
-        #define __AMW_FILENAME__ __FILE__
+        #define __AMW_FILE__ __FILE__
     #endif /* AMW_LOG_FULL_FILEPATH */
 #else
-    #define __AMW_FILENAME__ NULL
+    #define __AMW_FILE__ NULL
 #endif
 
 #ifndef AMW_LOG_DISABLE_LINE
@@ -989,12 +1030,11 @@ typedef enum amw_log_level {
     AMW_LOG_FATAL,
 } amw_log_level_t;
 
-void    amw_log_init(void *output);
+void    amw_log_init(amw_arena_t *arena, void *output);
 void    amw_log_terminate(void);
 
 void    amw_log_message(int32_t level, const char *function, const char *file, int32_t line, const char *fmt, ...) AMW_PRINTF_FORMAT(5);
 void    amw_log_raw(char *fmt, ...) AMW_PRINTF_FORMAT(1);
-char   *amw_log_va(char *fmt, ...) AMW_PRINTF_FORMAT(1);
 
 int32_t amw_log_level(void);
 void    amw_log_set_level(int32_t level);
@@ -1018,62 +1058,17 @@ void    amw_log_set_quiet(bool silence);
 #define amw_log_fatal(...) 
 #endif
 
+#ifdef __cplusplus
+    #define amw_cast_ptr(ptr) (decltype(ptr))
+#else
+    #define amw_cast_ptr(...)
+#endif
+
 typedef enum {
     AMW_SUCCESS = 0,
     AMW_ERROR = -1,
     /* TODO */
 } amw_result_t;
-
-#define amw_optional(t) struct { t value;   bool valid; }
-#define amw_result(t)   struct { t payload; int32_t error; }
-#define amw_slice(t)    struct { t *ptr;    size_t len; }
-
-typedef amw_slice(uint8_t) byte_slice_t;
-
-typedef struct amw_arena {
-    uint8_t *base;
-    uint8_t *top;
-} amw_arena_t;
-
-#ifdef __GNUC__
-    AMW_INLINE size_t amw_assert_smaller_helper(size_t a, size_t b) {
-        amw_assert(a < b);
-        return a;
-    }
-    #define amw_slice_get(s, i) s.ptr[amw_assert_smaller_helper(i, s.len)]
-    #define amw_slice_copy(d, s) amw_memcpy( \
-            d.ptr, s.ptr,                    \
-            amw_assert_smaller_helper(       \
-                sizeof(*s.ptr) * s.len,      \
-                sizeof(*d.ptr) * d.len + 1   \
-            )                                \
-        )
-#else
-    #define amw_slice_get(s, i) s.ptr[i]
-    #define amw_slice_copy(d, s) amw_memcpy(d.ptr, s.ptr, sizeof(*s.ptr) * s.len)
-#endif /* __GNUC__ */
-
-#define amw_as_bytes(ptr) ((byte_slice_t) { \
-        .ptr = (uint8_t *)ptr,              \
-        .len = sizeof(*ptr)                 \
-    })
-#define amw_array_as_bytes(ptr) ((byte_slice_t) { \
-        .ptr = (uint8_t *)ptr,                    \
-        .len = sizeof(ptr)                        \
-    })
-
-AMW_INLINE amw_arena_t amw_arena_init(void *mem, size_t size) {
-    return (amw_arena_t){ .base = mem, .top = (uint8_t *)mem + size };
-}
-
-#ifdef __GNUC__
-    __attribute__((malloc, alloc_size(2), alloc_align(3)))
-#endif
-void *amw_arena_alloc(amw_arena_t *arena, size_t size, size_t align);
-
-#define amw_arena_create(t, a) (t *)amw_arena_alloc(a, sizeof(t), alignof(t))
-#define amw_arena_create_array(t, a, n) \
-    (t *)amw_arena_alloc(a, n * sizeof(t), alignof(t))
 
 #ifdef __cplusplus
 }

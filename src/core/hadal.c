@@ -1,11 +1,8 @@
-#include "amw.h"
-#include "hadopelagic.h"
-#include "internal.h"
-#include "renderer/vulkan.h"
-#include "system.h"
-#include <vulkan/vulkan_core.h>
+#include "hadal.h"
 
 hadopelagic_t hadal = {0};
+
+#define HADAL_DEFAULT_ARENA_SIZE (1024 * 8)
 
 static const char *platform_string(uint32_t id)
 {
@@ -91,27 +88,34 @@ static bool select_platform(int32_t id)
         }
         amw_log_error("The requested platform is not supported");
     }
-    amw_assert_paranoid(!"unreachable code");
     return AMW_FALSE;
 }
 
 static void terminate(void)
 {
+    if (!hadal.initialized)
+        return;
+
+    amw_log_verbose("Terminating Hadal...");
     if (hadal.window_list != NULL)
         amw_hadal_destroy_window(hadal.window_list);
 
     if (hadal.api.terminate)
         hadal.api.terminate();
 
-    if (hadal.mutex)
+    if (hadal.mutex) {
         amw_mutex_destroy(hadal.mutex);
+    }
+
+    amw_arena_free(&hadal.arena);
     amw_zero(hadal);
+    amw_log_verbose("Hadal terminated!");
 }
 
 int32_t amw_hadal_init(int32_t platform_id)
 {
     if (hadal.initialized)
-        return 0;
+        return AMW_SUCCESS;
 
     amw_log_verbose("Initializing Hadal...");
     amw_zero(hadal);
@@ -122,7 +126,7 @@ int32_t amw_hadal_init(int32_t platform_id)
     if (!select_platform(platform_id))
         return -1; /* TODO error result code */
 
-    hadal.mutex = amw_mutex_create();
+    hadal.mutex = amw_mutex_create(&hadal.arena);
     if (!hadal.mutex) {
         amw_log_error("Could not create a mutex for hadal!");
         terminate();
@@ -138,7 +142,6 @@ int32_t amw_hadal_init(int32_t platform_id)
 void amw_hadal_terminate(void)
 {
     if (hadal.initialized) {
-        amw_log_verbose("Terminating Hadal...");
         terminate();
     }
 }
@@ -160,12 +163,15 @@ amw_window_t *amw_hadal_create_window(const char *title, int32_t width, int32_t 
     }
     amw_log_verbose("Creating a window: %ix%i '%s'", width, height, title);
 
-    amw_window_t *window = (amw_window_t *)amw_malloc(sizeof(amw_window_t));
+    amw_window_t *window = (amw_window_t *)amw_arena_alloc(&hadal.arena, sizeof(amw_window_t));
+    if (!window) {
+        amw_log_error("Failed to allocate resources for a new window");
+    }
 
     window->flags = flags;
     window->width = width;
     window->height = height;
-    window->title = strdup(title);
+    window->title = amw_arena_strdup(&hadal.arena, title);
 
     if (!hadal.api.create_window(window)) {
         amw_hadal_destroy_window(window);
@@ -180,8 +186,6 @@ void amw_hadal_destroy_window(amw_window_t *window)
 {
     if (window != NULL && hadal.initialized) {
         hadal.api.destroy_window(window);
-        amw_free(window->title);
-        amw_free(window);
         hadal.window_list = NULL; /* FIXME only one window allowed now */
     }
 }

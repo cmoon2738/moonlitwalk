@@ -1,9 +1,11 @@
-#include "../internal.h"
-#include "renderer/vulkan.h"
+#include <moonlitwalk/vk.h>
+
+#include "../core/hadal.h"
+#include "wayland.h"
 
 bool hadal_wayland_create_window(amw_window_t *window)
 {
-    amw_log_error("Wayland failed to create a window state.");
+    amw_log_error("Wayland failed to initialize its window state.");
     return AMW_FALSE;
 }
 

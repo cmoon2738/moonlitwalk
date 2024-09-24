@@ -1,4 +1,4 @@
-#include "../system.h"
+#include <moonlitwalk/system.h>
 
 #include <errno.h>
 #include <pthread.h>
@@ -7,21 +7,20 @@
 #include <time.h>
 
 #if defined(MW_PLATFORM_MACOSX) || defined(MW_PLATFORM_IOS)
-    error('macOS doesn't support sem_getvalue() as of version 10.4, fix this)
+    error "'macOS doesn't support sem_getvalue() as of version 10.4, fix this"
 #endif
 
 struct amw_semaphore {
     sem_t handle;
 };
 
-
-amw_semaphore_t *amw_semaphore_create(uint32_t initvalue)
+amw_semaphore_t *amw_semaphore_create(amw_arena_t *arena, uint32_t initvalue)
 {
-    amw_semaphore_t *sem = (amw_semaphore_t *)amw_malloc(sizeof(amw_semaphore_t));
+    amw_semaphore_t *sem = (amw_semaphore_t *)amw_arena_alloc(arena, sizeof(amw_semaphore_t));
     if (sem) {
         if (sem_init(&sem->handle, 0, initvalue) < 0) {
             amw_log_error("pthread failed to create a semaphore");
-            amw_free(sem);
+            /* FIXME remove the allocated memory field from the arena */
             sem = NULL;
         }
     }
@@ -104,6 +103,5 @@ void amw_semaphore_destroy(amw_semaphore_t *sem)
 {
     if (sem) {
         sem_destroy(&sem->handle);
-        amw_free(sem);
     }
 }

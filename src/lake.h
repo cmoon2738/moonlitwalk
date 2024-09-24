@@ -1,9 +1,9 @@
 #ifndef _amw_lake_h_
 #define _amw_lake_h_
 
-#include "amw.h"
-#include "hadopelagic.h"
-#include "renderer/vulkan.h"
+#include <moonlitwalk/amw.h>
+#include <moonlitwalk/hadopelagic.h>
+#include <moonlitwalk/vk.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,25 +14,22 @@ extern "C" {
 /* game data */
 typedef struct {
     amw_window_t *window;
-    amw_vulkan_t vk;
+    amw_vulkan_t  vk;
 
-    amw_arena_t  arena;
+    amw_arena_t   arena;
 
-    float rotation_velocity;
-    float rotation_angle;
+    float   rotation_velocity;
+    float   rotation_angle;
     int32_t direction;
-    bool freeze;
-    bool done;
+    bool    freeze;
+    bool    done;
 } amw_lake_t;
 
-bool    amw_lake_init_game(amw_lake_t *state);
+bool    amw_lake_init_game(void);
 void    amw_lake_terminate_game(void);
 int32_t amw_lake_update_game(void);
 
-// TODO implement events
-//int32_t amw_lake_event(lake_t *lake);
-
-amw_lake_t *amw_lake_gamedata(void);
+extern amw_lake_t lake;
 
 #ifdef __cplusplus
 }

@@ -1,5 +1,5 @@
-#include "../amw.h"
-#include "../system.h"
+#include <moonlitwalk/amw.h>
+#include <moonlitwalk/system.h>
 
 #include <stdio.h>
 #include <time.h>
@@ -60,7 +60,7 @@ static void default_callback(amw_log_t *log)
     fflush(log->userdata);
 }
 
-void amw_log_init(void *output)
+void amw_log_init(amw_arena_t *arena, void *output)
 {
     if (logger.initialized)
         return;
@@ -70,7 +70,7 @@ void amw_log_init(void *output)
     else
         logger.userdata = stderr;
 
-    logger.lock = amw_mutex_create();
+    logger.lock = amw_mutex_create(arena);
     if (!logger.lock) {
         fprintf(stderr, "DEBUG PRINT failed to create a logger mutex lock !!!");
     }
@@ -94,7 +94,6 @@ static void process_message(amw_log_t *log)
             log->time = localtime(&t);
         }
         log->userdata = logger.userdata;
-
         default_callback(log);
     }
     amw_mutex_unlock(logger.lock);
@@ -135,18 +134,6 @@ void amw_log_raw(char *fmt, ...)
     va_start(ap, fmt);
     vfprintf(logger.userdata, fmt, ap);
     va_end(ap);
-}
-
-char *amw_log_va(char *fmt, ...)
-{
-	va_list	argptr;
-	static char	string[1024];
-	
-	va_start(argptr, fmt);
-	vsnprintf(string, 1024, fmt,argptr);
-	va_end(argptr);
-
-	return string;	
 }
 
 int32_t amw_log_level(void)

@@ -1,4 +1,4 @@
-#include "vulkan.h"
+#include <moonlitwalk/vk.h>
 
 #ifdef AMW_ENABLE_VALIDATION_LAYERS
 static VkDebugUtilsMessengerEXT validation_messenger = VK_NULL_HANDLE;

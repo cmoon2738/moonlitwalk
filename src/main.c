@@ -1,8 +1,10 @@
-#include "amw.h"
+#include <moonlitwalk/amw.h>
+#include <moonlitwalk/hadopelagic.h>
+#include <moonlitwalk/sewing.h>
+#include <moonlitwalk/system.h>
+#include <moonlitwalk/vk.h>
+
 #include "lake.h"
-#include "system.h"
-#include "hadopelagic.h"
-#include "renderer/vulkan.h"
 
 #include <unistd.h>
 #include <errno.h>
@@ -13,30 +15,6 @@
 
 static int32_t opt_log_level = AMW_LOG_VERBOSE;
 static int32_t opt_platform_id = AMW_HADAL_ANY_PLATFORM;
-
-#define MASTER_ARENA_SIZE    (1024 * 1024 * 8)
-#define SWAPCHAIN_ARENA_SIZE  1024
-
-void *amw_arena_alloc(amw_arena_t *arena, size_t size, size_t align)
-{
-    amw_assert(
-        align == 1  ||
-        align == 2  ||
-        align == 4  ||
-        align == 8  ||
-        align == 16 ||
-        align == 32);
-
-    uint8_t *mem = arena->top - size;
-    size_t   padding = (size_t)((uintptr_t)mem & (align - 1));
-
-    if ((arena->top - arena->base) < (ptrdiff_t)(size + padding)) {
-        amw_log_warn("fix your shit, empty arena !");
-        return NULL;
-    }
-    arena->top = mem - padding;
-    return arena->top;
-}
 
 static bool log_level_from_string(const char *str, int32_t *level)
 {
@@ -176,23 +154,23 @@ static int64_t timespec_diff(struct timespec *end, struct timespec *start) {
     return sec_diff + nsec_diff;
 }
 
-static void cleanup(amw_lake_t *lake)
+static void cleanup(void)
 {
-    amw_vk_terminate(&lake->vk);
-    amw_hadal_destroy_window(lake->window);
+    amw_vk_terminate(&lake.vk);
+    amw_hadal_destroy_window(lake.window);
     amw_hadal_terminate();
 
-    if (lake->arena.base != NULL)
-        amw_free(lake->arena.base);
-
-    if (lake != NULL)
-        amw_free(lake);
-
     amw_log_terminate();
+    amw_arena_free(&lake.arena);
 }
 
-/* TODO this function will be the entry point for the fiber job system */
-static void main_loop(amw_lake_t *lake)
+/* TODO this function will be the entry point for the fiber job system
+static void main_loop(amw_sewing_t *sewing,
+                      amw_thread_t *threads,
+                      size_t thread_count,
+                      amw_procedure_argument_t argument);
+*/
+static void main_loop(void)
 {
     struct timespec last_update;
     struct timespec now;
@@ -209,7 +187,7 @@ static void main_loop(amw_lake_t *lake)
     }
 
     int64_t remainder = 0;
-    while (!amw_hadal_should_close(lake->window)) {
+    while (!amw_hadal_should_close(lake.window)) {
         do {
             error = clock_gettime(CLOCK_MONOTONIC, &now);
         } while (error == EINTR);
@@ -227,10 +205,10 @@ static void main_loop(amw_lake_t *lake)
         last_update = now;
         remainder = delta_time;
 
-        amw_vk_draw_frame(&lake->vk); 
+        amw_vk_draw_frame(&lake.vk); 
     }
 
-    vkDeviceWaitIdle(lake->vk.device);
+    vkDeviceWaitIdle(lake.vk.device);
     return;
 }
 
@@ -238,51 +216,34 @@ static int32_t a_moonlit_walk(void)
 {
     int32_t res = AMW_SUCCESS;
 
-    amw_log_init(NULL);
+    amw_log_init(&lake.arena, NULL);
     amw_log_set_level(opt_log_level);
-
-    amw_arena_t master_arena = amw_arena_init(amw_malloc(MASTER_ARENA_SIZE), MASTER_ARENA_SIZE);
-    if (master_arena.base == NULL) {
-        amw_log_fatal("Failed to allocate the master arena for Vulkan memory pool");
-        amw_log_terminate();
-        return -1; /* TODO error code */
-    }
-
-    amw_lake_t *lake = (amw_lake_t *)amw_malloc(sizeof(amw_lake_t));
-    amw_assert(lake != NULL);
-    amw_zerop(lake);
-    lake->arena = master_arena;
-
-    amw_arena_t swapchain_arena = amw_arena_init(
-        amw_arena_alloc(&lake->arena, SWAPCHAIN_ARENA_SIZE, 1), SWAPCHAIN_ARENA_SIZE);
-    amw_assert(swapchain_arena.base != NULL);
-    lake->vk.base_swapchain_arena = swapchain_arena;
 
     res = amw_hadal_init(opt_platform_id);
     if (res != AMW_SUCCESS) {
         amw_log_fatal("Could not initialize Hadal, code '%d'.", res);
-        cleanup(lake);
+        cleanup();
         return res;
     }
 
-    lake->window = amw_hadal_create_window("moonlitwalk", 800, 600, 0);
-    if (lake->window == NULL) {
+    lake.window = amw_hadal_create_window("moonlitwalk", 800, 600, 0);
+    if (lake.window == NULL) {
         amw_log_fatal("Failed to create a window, received a null pointer.");
-        cleanup(lake);
-        return -1; /* TODO error code */
+        cleanup();
+        return -1; // TODO error code
     }
 
-    res = amw_vk_init(&lake->vk, lake->window);
+    res = amw_vk_init(&lake.vk, lake.window);
     if (res != AMW_SUCCESS) {
         amw_log_fatal("Could not initialize Hadal, code '%d'.", res);
-        cleanup(lake);
+        cleanup();
         return res;
     }
 
-    res = amw_lake_init_game(lake);
+    res = amw_lake_init_game();
 
-    main_loop(lake);
-    cleanup(lake);
+    main_loop();
+    cleanup();
     return AMW_SUCCESS;
 }
 
@@ -327,8 +288,10 @@ static char **command_line_to_utf8_argv(LPWSTR w_command_line, int32_t *o_argc)
 #ifdef AMW_PLATFORM_WINDOWS_FORCE_MAIN
 int32_t main(int32_t argc, char **argv)
 {
+    int32_t res = AMW_SUCCESS;
+
     parse_arguments(argc, argv);
-    int32_t res = a_moonlit_walk();
+    res = a_moonlit_walk();
     amw_exit(res);
 }
 #else
@@ -343,14 +306,15 @@ int32_t WINAPI WinMain(_In_ HINSTANCE hInstance,
     (void)lpCmdLine;
     (void)nCmdShow;
 
+    int32_t res = AMW_SUCCESS;
     int32_t argc_utf8 = 0;
     char **argv_utf8 = command_line_to_utf8_argv(GetCommandLineW(), &argc_utf8);
 
-    parse_arguments(argc_utf8, argv_utf8);
-    int32_t result = a_moonlit_walk();
+    parse_arguments(argc, argv);
+    res = a_moonlit_walk();
 
     amw_free(argv_utf8);
-    amw_exit(result);
+    amw_exit(res);
 }
 #endif /* AMW_PLATFORM_WINDOWS_FORCE_MAIN */
 
@@ -374,8 +338,10 @@ JNIEXPORT void ANativeActivity_onCreate(ANativeActivity* activity,
 #else
 int32_t main(int32_t argc, char **argv)
 {
+    int32_t res = AMW_SUCCESS;
+
     parse_arguments(argc, argv);
-    int32_t res = a_moonlit_walk();
+    res = a_moonlit_walk();
     amw_exit(res);
 }
 #endif /* main entry points */
