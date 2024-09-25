@@ -60,7 +60,7 @@ static void default_callback(amw_log_t *log)
     fflush(log->userdata);
 }
 
-void amw_log_init(amw_arena_t *arena, void *output)
+void amw_log_init(void *output)
 {
     if (logger.initialized)
         return;
@@ -70,7 +70,7 @@ void amw_log_init(amw_arena_t *arena, void *output)
     else
         logger.userdata = stderr;
 
-    logger.lock = amw_mutex_create(arena);
+    logger.lock = amw_mutex_create();
     if (!logger.lock) {
         fprintf(stderr, "DEBUG PRINT failed to create a logger mutex lock !!!");
     }

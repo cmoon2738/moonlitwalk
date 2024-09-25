@@ -15,6 +15,7 @@ extern "C" {
 #define AMW_VERSION_MAJOR 0
 #define AMW_VERSION_MINOR 1
 #define AMW_VERSION_PATCH 1
+#define AMW_VERSIONSTR "A MoonlitWalk Engine 0.1.1"
 
 #define amw_versionnum(major, minor, patch) \
     ((major) * 1000000 + (minor) * 1000 + (patch))
@@ -23,11 +24,13 @@ extern "C" {
 #define amw_versionnum_minor(version) (((version) / 1000) % 1000)
 #define amw_versionnum_patch(version) ((version) % 1000)
 
+#define AMW_CONCAT_HELPER(prefix, suffix)    prefix##suffix
+#define amw_concat(prefix, suffix)           AMW_CONCAT_HELPER(prefix, suffix)
+
 #define AMW_VERSION \
     amw_versionnum(AMW_VERSION_MAJOR, AMW_VERSION_MINOR, AMW_VERSION_PATCH)
 
-#define AMW_CONCAT_HELPER(prefix, suffix)    prefix##suffix
-#define amw_concat(prefix, suffix)           AMW_CONCAT_HELPER(prefix, suffix)
+const char *amw_version_string(void);
 
 #ifndef AMW_PLATFORM_WINDOWS
     #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__CYGWIN__)
@@ -1030,7 +1033,7 @@ typedef enum amw_log_level {
     AMW_LOG_FATAL,
 } amw_log_level_t;
 
-void    amw_log_init(amw_arena_t *arena, void *output);
+void    amw_log_init(void *output);
 void    amw_log_terminate(void);
 
 void    amw_log_message(int32_t level, const char *function, const char *file, int32_t line, const char *fmt, ...) AMW_PRINTF_FORMAT(5);

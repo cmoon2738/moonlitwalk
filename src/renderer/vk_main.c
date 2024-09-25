@@ -1,8 +1,6 @@
 #include <moonlitwalk/vk.h>
 #include <moonlitwalk/hadopelagic.h>
 
-amw_arena_t temporary_rendering_arena;
-
 #ifdef AMW_ENABLE_VALIDATION_LAYERS
 static bool validation_layers_enabled = AMW_TRUE;
 static const char *validation_layers[] = {
@@ -62,7 +60,6 @@ bool amw_vk_init(amw_vulkan_t *vk, amw_window_t *window)
 {
     amw_assert(vk);
     amw_assert(!vk->initialized);
-    //amw_assert(vk->base_swapchain_arena != NULL);
     amw_assert(window);
 
     /* TODO */

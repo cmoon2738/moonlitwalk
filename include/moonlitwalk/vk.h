@@ -108,10 +108,6 @@ typedef struct amw_vulkan {
     bool     initialized;
 } amw_vulkan_t;
 
-/* maybe i should move it out of the vulkan backend
- * it's supposed to be amw_arena_reset() every frame */
-extern amw_arena_t temporary_rendering_arena;
-
 bool amw_vk_init(amw_vulkan_t *vk, amw_window_t *window);
 void amw_vk_terminate(amw_vulkan_t *vk);
 

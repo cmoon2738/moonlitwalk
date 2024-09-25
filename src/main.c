@@ -16,6 +16,11 @@
 static int32_t opt_log_level = AMW_LOG_VERBOSE;
 static int32_t opt_platform_id = AMW_HADAL_ANY_PLATFORM;
 
+const char *amw_version_string(void)
+{
+    return AMW_VERSIONSTR;
+}
+
 static bool log_level_from_string(const char *str, int32_t *level)
 {
     if ((strcmp(str, "verbose")) == 0) {
@@ -62,15 +67,7 @@ static bool platform_id_from_string(const char *str, int32_t *id)
 
 AMW_NORETURN static void print_version(FILE *f) 
 {
-    fprintf(f, "\nA Moonlit Walk engine version %d.%d.%d\n", 
-        AMW_VERSION_MAJOR, AMW_VERSION_MINOR, AMW_VERSION_PATCH);
-    amw_vk_open_library();
-    int32_t vk_version = amw_vk_version();
-    fprintf(f, "\tFound Vulkan driver version %d.%d.%d\n",
-        VK_VERSION_MAJOR(vk_version),
-        VK_VERSION_MINOR(vk_version),
-        VK_VERSION_PATCH(vk_version));
-    amw_vk_close_library();
+    fprintf(f, "A Moonlit Walk Engine, version %s", amw_version_string());
     amw_exit(0);
 }
 
@@ -181,10 +178,12 @@ static void main_loop(void)
         error = clock_gettime(CLOCK_MONOTONIC, &last_update);
     } while (error == EINTR);
     if (error != 0) {
-        amw_log_error("Main loop clock error '%d'", error);
+        amw_log_error("Main loop initial clock error '%d'", error);
         amw_exitcode(error);
         return;
     }
+
+    /* TODO now i can update the clock here :3 but im lazy so the future me will do it */
 
     int64_t remainder = 0;
     while (!amw_hadal_should_close(lake.window)) {
@@ -205,10 +204,11 @@ static void main_loop(void)
         last_update = now;
         remainder = delta_time;
 
-        amw_vk_draw_frame(&lake.vk); 
+        //amw_vk_draw_frame(&lake.vk); 
+        amw_hadal_request_close(lake.window, AMW_TRUE);
     }
 
-    vkDeviceWaitIdle(lake.vk.device);
+    //vkDeviceWaitIdle(lake.vk.device);
     return;
 }
 
@@ -216,7 +216,7 @@ static int32_t a_moonlit_walk(void)
 {
     int32_t res = AMW_SUCCESS;
 
-    amw_log_init(&lake.arena, NULL);
+    amw_log_init(NULL);
     amw_log_set_level(opt_log_level);
 
     res = amw_hadal_init(opt_platform_id);
@@ -233,14 +233,17 @@ static int32_t a_moonlit_walk(void)
         return -1; // TODO error code
     }
 
+    /*
     res = amw_vk_init(&lake.vk, lake.window);
     if (res != AMW_SUCCESS) {
         amw_log_fatal("Could not initialize Hadal, code '%d'.", res);
         cleanup();
         return res;
     }
+    */
 
     res = amw_lake_init_game();
+    amw_hadal_show_window(lake.window);
 
     main_loop();
     cleanup();

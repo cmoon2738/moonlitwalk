@@ -7,19 +7,19 @@ struct amw_mutex {
     pthread_mutex_t handle;
 };
 
-amw_mutex_t *amw_mutex_create(amw_arena_t *arena)
+amw_mutex_t *amw_mutex_create(void)
 {
     amw_mutex_t *mutex;
     pthread_mutexattr_t attr;
 
-    mutex = (amw_mutex_t *)amw_arena_alloc(arena, sizeof(*mutex));
+    mutex = (amw_mutex_t *)amw_malloc(sizeof(*mutex));
     if (mutex) {
         pthread_mutexattr_init(&attr);
         pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
 
         if (pthread_mutex_init(&mutex->handle, &attr)) {
             amw_log_error("pthread failed to create a mutex");
-            /* FIXME remove the allocated memory field from the arena */
+            amw_free(mutex);
             mutex = NULL;
         }
     }
@@ -61,13 +61,8 @@ void amw_mutex_unlock(amw_mutex_t *mutex)
 void amw_mutex_destroy(amw_mutex_t *mutex)
 {
     if (mutex) {
-
         pthread_mutex_destroy(&mutex->handle);
+        amw_free(mutex);
         mutex = NULL;
     }
-}
-
-void amw_mutex_arena_free(void)
-{
-
 }

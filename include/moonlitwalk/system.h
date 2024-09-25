@@ -29,13 +29,20 @@ void amw_close_dll(void *handle);
 /* reads multicore information about the cpu, saves them to the arguments */
 void amw_cpu_count(int32_t *threads, int32_t *cores, int32_t *packages);
 
+
+/* timer calls */
+typedef struct amw_timer amw_timer_t;
+void     amw_platform_timer_init(amw_timer_t *timer);
+uint64_t amw_platform_timer_value(amw_timer_t *timer);
+uint64_t amw_platform_timer_frequency(amw_timer_t *timer);
+
 /**
  * Provides a locking mechanism, ensuring that only one thread 
  * will access a shared resource at a time, so, critical sections.
  */
 typedef struct amw_mutex amw_mutex_t;
 
-amw_mutex_t *amw_mutex_create(amw_arena_t *arena);
+amw_mutex_t *amw_mutex_create(void);
 void         amw_mutex_lock(amw_mutex_t *mutex);     /* will block */
 bool         amw_mutex_try_lock(amw_mutex_t *mutex); /* no blocking */
 void         amw_mutex_unlock(amw_mutex_t *mutex);
@@ -51,7 +58,7 @@ void         amw_mutex_destroy(amw_mutex_t *mutex);
  */
 typedef struct amw_semaphore amw_semaphore_t;
 
-amw_semaphore_t *amw_semaphore_create(amw_arena_t *arena, uint32_t initvalue);
+amw_semaphore_t *amw_semaphore_create(uint32_t initvalue);
 void             amw_semaphore_wait(amw_semaphore_t *sem);
 bool             amw_semaphore_wait_timeout(amw_semaphore_t *sem, int32_t ms);
 bool             amw_semaphore_wait_timeout_ns(amw_semaphore_t *sem, int32_t ns);

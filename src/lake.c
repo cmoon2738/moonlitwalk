@@ -39,8 +39,6 @@ int32_t amw_lake_update_game(void)
     lake.rotation_velocity = amw_max(
         amw_min(lake.rotation_velocity, SQUARE_MAX_VELOCITY), -1.0f * SQUARE_MAX_VELOCITY);
 
-    return AMW_SUCCESS;
-
     lake.rotation_angle += lake.rotation_velocity * fdt;
 
     if (lake.rotation_angle >= 2.0f * AMW_PIf) {
@@ -49,4 +47,6 @@ int32_t amw_lake_update_game(void)
     if (lake.rotation_angle < 0.0f) {
         lake.rotation_angle += 2.0f * AMW_PIf;
     }
+
+    return AMW_SUCCESS;
 }

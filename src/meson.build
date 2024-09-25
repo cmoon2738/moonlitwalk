@@ -94,6 +94,7 @@ elif sys == 'linux' or sys == 'bsd'
     if build_wayland_ws
         sources += files(
             'linux/wl_display.c',
+            'linux/wl_output.c',
             'linux/wl_window.c',
         )
 
@@ -108,15 +109,20 @@ elif sys == 'linux' or sys == 'bsd'
 
         wayland_protocols = {
             'xdg-shell'           : '',
-            #'xdg-output'          : '-unstable-v1',
-            #'xdg-decoration'      : '-unstable-v1',
-            #'xdg-activation'      : '-v1',
-            #'pointer-constraints' : '-unstable-v1',
-            #'viewporter'          : '',
+            'xdg-output'          : '-unstable-v1',
+            'xdg-decoration'      : '-unstable-v1',
+            'xdg-activation'      : '-v1',
+            'fractional-scale'    : '-v1',
+            'relative-pointer'    : '-unstable-v1',
+            'pointer-constraints' : '-unstable-v1',
+            #'pointer-gestures'    : '-unstable-v1',
+            'idle-inhibit'        : '-unstable-v1',
+            'viewporter'          : '',
+            #'tablet'              : '-v2'
         }
 
         foreach name, version : wayland_protocols
-            if version == ''
+            if version == '' or name == 'tablet'
                 type = 'stable'
             elif version == '-v1'
                 type = 'staging'
