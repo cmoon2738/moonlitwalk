@@ -56,10 +56,8 @@ amw_slice_t *amw_slice_new(size_t capacity)
 
 void amw_slice_free(amw_slice_t *slice)
 {
-    amw_log_warn("w dupee");
     size_t size_bytes = sizeof(amw_slice_t) + sizeof(uintptr_t) * slice->capacity;
     int32_t ret = munmap(slice, size_bytes);
-    amw_log_warn("w dupee jebanaaa");
     amw_assert(ret == 0);
 }
 

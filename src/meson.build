@@ -5,6 +5,7 @@ sources += files(
     'core/hadal.c',
     'core/log.c',
     'core/sewing.c',
+    'core/spinlock.c',
 )
 
 # Unix
@@ -12,8 +13,10 @@ if have_posix
     sources += files(
         'unix/dll.c',
         'unix/posix_mutex.c',
+        'unix/posix_poll.c',
         'unix/posix_sem.c',
         'unix/posix_threads.c',
+        'unix/posix_time.c',
     )
     defs += '-DAMW_PLATFORM_UNIX'
 endif
@@ -95,6 +98,7 @@ elif sys == 'linux' or sys == 'bsd'
         sources += files(
             'linux/wl_display.c',
             'linux/wl_output.c',
+            'linux/wl_surface.c',
             'linux/wl_window.c',
         )
 

@@ -19,19 +19,15 @@ typedef enum amw_platform_id {
     AMW_HADAL_PLATFORM_HEADLESS,
 } amw_platform_id_t;
 
-typedef struct amw_window amw_window_t;
-typedef enum amw_window_flags {
-    AMW_WINDOW_FLAG_NOTHING           = 0,
-    AMW_WINDOW_FLAG_RESIZABLE         = 0x00000001,
-    AMW_WINDOW_FLAG_MAXIMIZED         = 0x00000002,
-    AMW_WINDOW_FLAG_TRANSPARENT       = 0x00000004,
-    AMW_WINDOW_FLAG_SCALE_FRAMEBUFFER = 0x00000008,
-    AMW_WINDOW_FLAG_AUTO_ICONIFY      = 0x00000010,
-    AMW_WINDOW_FLAG_DECORATED         = 0x00000020,
-    AMW_WINDOW_FLAG_FLOATING          = 0x00000040,
-    AMW_WINDOW_FLAG_FOCUS_ON_SHOW     = 0x00000080,
-    AMW_WINDOW_FLAG_MOUSE_PASSTHROUGH = 0x00000100,
-} amw_window_flags_t;
+AMW_API uint32_t AMW_CALL amw_hadal_platform(void);
+AMW_API bool     AMW_CALL amw_hadal_platform_supported(int32_t id);
+
+/** Handling the display backend: setup for windowing, input. */
+AMW_API int32_t  AMW_CALL amw_hadal_init(int32_t platform_id);
+AMW_API void     AMW_CALL amw_hadal_terminate(void);
+
+/** Processes the pending events, to provide input, output or joystick connection events */
+AMW_API void     AMW_CALL amw_hadal_poll(void);        
 
 typedef enum amw_keycode {
     AMW_KEY_SPACE            = 32,
@@ -184,18 +180,22 @@ typedef enum amw_keymod {
     AMW_KEYMOD_INVALID   = 0,
 } amw_keymod_t;
 
+#ifdef AMW_PLATFORM_ANDROID
 typedef enum amw_android_tooltype {
     AMW_ANDROID_TOOLTYPE_UNKNOWN = 0,
     AMW_ANDROID_TOOLTYPE_FINGER  = 1,
     AMW_ANDROID_TOOLTYPE_STYLUS  = 2,
     AMW_ANDROID_TOOLTYPE_MOUSE   = 3,
 } amw_android_tooltype_t;
+#endif /* AMW_PLATFORM_ANDROID */
 
 typedef struct amw_touchpoint {
     uintptr_t identifier;
     float     pos_x, pos_y;
-    amw_android_tooltype_t android_tooltype; // only valid on Android
     bool      changed;
+#ifdef AMW_PLATFORM_ANDROID
+    amw_android_tooltype_t android_tooltype;
+#endif /* AMW_PLATFORM_ANDROID */
 } amw_touchpoint_t;
 
 typedef enum amw_joystick_id {
@@ -282,22 +282,71 @@ typedef enum amw_input_event {
     AMW_INPUT_UNDEFINED         = 0,
 } amw_input_event_t;
 
+/** An opaque window handle. */
+typedef struct amw_window amw_window_t;
+
+/**
+ * Flags will indicate the window state for different functionality or behaviour.
+ * They can be read by the application after a window is created.
+ * Some flags indicate hints the window was created with.
+ */
+typedef enum amw_window_flags {
+    AMW_WINDOW_FLAG_SHOULD_CLOSE      = 0x00000001, /* the window requested to close if it's set true */
+    AMW_WINDOW_FLAG_VISIBLE           = 0x00000002, /* is the windowed mode window is shown or hidden from the user */
+    AMW_WINDOW_FLAG_RESIZABLE         = 0x00000004, /* if the windowed mode window can be resized or not */
+    AMW_WINDOW_FLAG_ICONIFIED         = 0x00000008, /* if the windowed mode window is minimized, maybe visible in the taskbar */
+    AMW_WINDOW_FLAG_MAXIMIZED         = 0x00000010, /* if the windowed mode window will be maximized to the output screen */
+    AMW_WINDOW_FLAG_FULLSCREEN        = 0x00000020, /* if the window runs in fullscreen mode, or windowed mode */
+    AMW_WINDOW_FLAG_FOCUSED           = 0x00000040, /* when the window is focused it will receive input */
+    AMW_WINDOW_FLAG_TRANSPARENT       = 0x00000080, /* whether the framebuffer will be opaque or transparent, blending with the background */
+    AMW_WINDOW_FLAG_DECORATED         = 0x00000100, /* if true, window will have decorations such as a border, a close widget; an undecorated window will not be resizable by the user */
+    AMW_WINDOW_FLAG_HOVERED           = 0x00000200, /* indicates if the cursor is hovered over the window */
+    AMW_WINDOW_FLAG_AUTO_ICONIFY      = 0x00000400, /* if true, a fullscreen window will minimize and restore previous video mode on input focus loss, ignored in windowed mode */
+    AMW_WINDOW_FLAG_FOCUS_ON_SHOW     = 0x00000800, /* the window will receive input focus when its state changes to visible */
+    AMW_WINDOW_FLAG_ALWAYS_ON_TOP     = 0x00001000, /* if the window will be floating above other regular windows */
+    AMW_WINDOW_FLAG_SCALE_FRAMEBUFFER = 0x00002000, /* whether the framebuffer should be resized based on content scale changes */
+    AMW_WINDOW_FLAG_STICKY_KEYS       = 0x00004000, /* holds the pollable key state as AMW_INPUT_PRESS until explicitly polled */
+    AMW_WINDOW_FLAG_LOCK_KEYMODS      = 0x00008000, /* if the keymods (shift, ctrl, alt, mod, etc.) should be locked to the state they were in when an input event was generated */
+} amw_window_flags_t;
+
+AMW_API amw_window_t * AMW_CALL amw_hadal_create_window(const char *title, int32_t width, int32_t height, uint32_t flags);
+AMW_API void           AMW_CALL amw_hadal_destroy_window(amw_window_t *window);
+AMW_API bool           AMW_CALL amw_hadal_read(amw_window_t *window, uint32_t flags_mask); 
+AMW_API uint32_t       AMW_CALL amw_hadal_flags(amw_window_t *window);
+
+AMW_API void AMW_CALL amw_hadal_should_close(amw_window_t *window, bool value);
+AMW_API void AMW_CALL amw_hadal_visible(amw_window_t *window, bool value);
+AMW_API void AMW_CALL amw_hadal_minimize(amw_window_t *window);
+AMW_API void AMW_CALL amw_hadal_maximize(amw_window_t *window);
+AMW_API void AMW_CALL amw_hadal_restore(amw_window_t *window);
+AMW_API void AMW_CALL amw_hadal_fullscreen(amw_window_t *window, bool value);
+
+AMW_API void AMW_CALL amw_hadal_retitle_window(amw_window_t *window, const char *title);
+AMW_API void AMW_CALL amw_hadal_resize_window(amw_window_t *window, int32_t width, int32_t height);
+
+AMW_API void AMW_CALL amw_hadal_window_size(amw_window_t *window, int32_t *width, int32_t *height);
+AMW_API void AMW_CALL amw_hadal_framebuffer_size(amw_window_t *window, int32_t *width, int32_t *height);
+AMW_API void AMW_CALL amw_hadal_content_scale(amw_window_t *window, float *xscale, float *yscale);
+
+AMW_API void         AMW_CALL amw_hadal_set_clipboard_string(const char *string);
+AMW_API const char * AMW_CALL amw_hadal_get_clipboard_string(void);
+
 /* callbacks, to be set up by the input manager */
-typedef void *(*PFN_hadal_key_callback)(void *data, amw_window_t *window, int32_t key, int32_t scancode, int32_t action, int32_t mods);
-typedef void *(*PFN_hadal_mousebutton_callback)(void *data, amw_window_t *window, int32_t button, int32_t action, int32_t mods);
-typedef void *(*PFN_hadal_touch_callback)(void *data, amw_window_t *window, amw_touchpoint_t touchpoint, int32_t action);
-typedef void *(*PFN_hadal_joystick_callback)(void *data, int32_t jid, int32_t event);
+typedef void *(AMW_CALL *PFN_hadal_key_callback)(void *data, amw_window_t *window, int32_t key, int32_t scancode, int32_t action, int32_t mods);
+typedef void *(AMW_CALL *PFN_hadal_mousebutton_callback)(void *data, amw_window_t *window, int32_t button, int32_t action, int32_t mods);
+typedef void *(AMW_CALL *PFN_hadal_touch_callback)(void *data, amw_window_t *window, amw_touchpoint_t touchpoint, int32_t action);
+typedef void *(AMW_CALL *PFN_hadal_joystick_callback)(void *data, int32_t jid, int32_t event);
 typedef struct {
-    void *data; /* user defined input context */
+    void *data; /* input manager state */
 
     PFN_hadal_key_callback              key;
     //PFN_hadal_unicode_callback          unicode; /* TODO */
     //PFN_hadal_scroll_callback           scroll; /* TODO */ 
-    //PFN_hadal_mousebutton_callback      mousebutton; /* TODO */
+    PFN_hadal_mousebutton_callback      mousebutton;
     //PFN_hadal_cursor_pos_callback       cursor_pos; /* TODO */ 
     //PFN_hadal_cursor_enter_callback     cursor_enter; /* TODO */ 
-    //PFN_hadal_touch_callback            touch; /* TODO */
-    //PFN_hadal_joystick_callback         joystick; /* TODO */
+    PFN_hadal_touch_callback            touch;
+    PFN_hadal_joystick_callback         joystick;
     //PFN_hadal_joystick_axis_callback    joystick_axis; /* TODO */
     //PFN_hadal_joystick_button_callback  joystick_button; /* TODO */
     //PFN_hadal_joystick_hat_callback     joystick_hat; /* TODO */
@@ -305,41 +354,16 @@ typedef struct {
 } amw_input_callbacks_t;
 
 /* callbacks, to be set up by the renderer */
-typedef void *(*PFN_hadal_framebuffer_resized_callback)(void *data, amw_window_t *window, int32_t width, int32_t height);
+typedef void *(AMW_CALL *PFN_hadal_framebuffer_resized_callback)(void *data, amw_window_t *window, int32_t width, int32_t height);
 typedef struct {
-    void *data; /* user defined rendering context */
+    void *data; /* renderer state */
 
     PFN_hadal_framebuffer_resized_callback framebuffer_resized;
 } amw_renderer_callbacks_t;
 
-/* core calls */
-uint32_t      amw_hadal_platform(void);
-bool          amw_hadal_platform_supported(int32_t id);
-
-int32_t       amw_hadal_init(int32_t platform_id);
-void          amw_hadal_terminate(void);
-
-/* platform calls */
-void          amw_hadal_set_clipboard_string(const char *string);
-const char   *amw_hadal_get_clipboard_string(void);
-
-/* window-specific calls */
-amw_window_t *amw_hadal_create_window(const char *title, int32_t width, int32_t height, uint32_t flags);
-void          amw_hadal_destroy_window(amw_window_t *window);
-void          amw_hadal_show_window(amw_window_t *window);
-void          amw_hadal_hide_window(amw_window_t *window);
-bool          amw_hadal_should_close(amw_window_t *window);
-void          amw_hadal_request_close(amw_window_t *window, bool request);
-
-void          amw_hadal_retitle_window(amw_window_t *window, const char *title);
-void          amw_hadal_resize_window(amw_window_t *window, int32_t width, int32_t height);
-void          amw_hadal_window_size(amw_window_t *window, int32_t *width, int32_t *height);
-void          amw_hadal_framebuffer_size(amw_window_t *window, int32_t *width, int32_t *height);
-void          amw_hadal_content_scale(amw_window_t *window, float *xscale, float *yscale);
-
-/* callbacks for other systems */
-void          amw_hadal_setup_input_callbacks(amw_window_t *window, amw_input_callbacks_t callbacks);
-void          amw_hadal_setup_renderer_callbacks(amw_window_t *window, amw_renderer_callbacks_t callbacks);
+/* platform callbacks for other game systems */
+AMW_API void AMW_CALL amw_hadal_setup_input_callbacks(amw_window_t *window, amw_input_callbacks_t callbacks);
+AMW_API void AMW_CALL amw_hadal_setup_renderer_callbacks(amw_window_t *window, amw_renderer_callbacks_t callbacks);
 
 #ifdef __cplusplus
 }

@@ -1,5 +1,3 @@
-#include "moonlitwalk/amw.h"
-#include "moonlitwalk/hadopelagic.h"
 #include "hadal.h"
 
 hadopelagic_t hadal = {0};
@@ -93,6 +91,27 @@ static bool select_platform(int32_t id)
     return AMW_FALSE;
 }
 
+uint32_t amw_hadal_platform(void)
+{
+    if (hadal.initialized)
+        return hadal.api.id;
+    return 0;
+}
+
+bool amw_hadal_platform_supported(int32_t id)
+{
+    const size_t count = amw_arraysize(supported_platforms);
+    size_t i;
+
+    if (id == AMW_HADAL_PLATFORM_HEADLESS)
+        return AMW_TRUE;
+    for (i = 0; i < count; i++) {
+        if (id == supported_platforms[i].id)
+            return AMW_TRUE;
+    }
+    return AMW_FALSE;
+}
+
 static void terminate(void)
 {
     if (!hadal.initialized)
@@ -127,13 +146,13 @@ int32_t amw_hadal_init(int32_t platform_id)
         platform_id = AMW_HADAL_ANY_PLATFORM;
 
     if (!select_platform(platform_id))
-        return -1; /* TODO error result code */
+        return AMW_ERROR_PLATFORM_NOT_SUPPORTED;
 
     hadal.mutex = amw_mutex_create();
     if (!hadal.mutex) {
         amw_log_error("Could not create a mutex for hadal!");
         terminate();
-        return -1; /* TODO error result code */
+        return AMW_ERROR_MUTEX_FAILED;
     }
     hadal.api.init();
 
@@ -154,11 +173,6 @@ amw_window_t *amw_hadal_create_window(const char *title, int32_t width, int32_t 
 {
     if (!hadal.initialized)
         return NULL;
-
-    /* FIXME, for now allow only one window */
-    if (hadal.window_list != NULL)
-        return hadal.window_list;
-
     amw_assert(title != NULL);
 
     if (width <= 0 || height <= 0) {
@@ -175,6 +189,7 @@ amw_window_t *amw_hadal_create_window(const char *title, int32_t width, int32_t 
     amw_zerop(window);
 
     window->title     = strdup(title);
+    window->next      = NULL;
     window->output    = NULL;
     window->minwidth  = HADAL_DONT_CARE;
     window->minheight = HADAL_DONT_CARE;
@@ -183,99 +198,133 @@ amw_window_t *amw_hadal_create_window(const char *title, int32_t width, int32_t 
     window->numer     = HADAL_DONT_CARE;
     window->denom     = HADAL_DONT_CARE;
 
-    window->maximized         = flags & AMW_WINDOW_FLAG_MAXIMIZED;
-    window->resizable         = flags & AMW_WINDOW_FLAG_RESIZABLE;
-    window->transparent       = flags & AMW_WINDOW_FLAG_TRANSPARENT;
-    window->auto_iconify      = flags & AMW_WINDOW_FLAG_AUTO_ICONIFY;
-    window->scale_framebuffer = flags & AMW_WINDOW_FLAG_SCALE_FRAMEBUFFER;
-    /* FIXME at any time this probably should be updated huh */
+    // TODO init state from reading the flags
+    window->flags     = flags;
 
     if (!hadal.api.create_window(window, width, height)) {
         amw_hadal_destroy_window(window);
         return NULL;
     }
 
+    if (hadal.window_list != NULL)
+        window->next = hadal.window_list;
     hadal.window_list = window;
+
     return window;
 }
 
 void amw_hadal_destroy_window(amw_window_t *window)
 {
+    /* FIXME only one window at a time will work for now */
     if (window != NULL && hadal.initialized) {
         hadal.api.destroy_window(window);
-        hadal.window_list = NULL; /* FIXME only one window allowed now */
         amw_free(window->title);
         amw_free(window);
     }
 }
 
-bool amw_hadal_should_close(amw_window_t *window)
+bool amw_hadal_read(amw_window_t *window, uint32_t flags_mask)
 {
+    if (!hadal.initialized)
+        return 0;
     amw_assert(window);
-    return window->should_close;
+
+    return window->flags & flags_mask;
 }
 
-void amw_hadal_request_close(amw_window_t *window, bool request)
+uint32_t amw_hadal_flags(amw_window_t *window)
 {
+    if (!hadal.initialized)
+        return 0;
     amw_assert(window);
-    window->should_close = request;
+
+    return window->flags;
 }
 
-uint32_t amw_hadal_platform(void)
-{
-    if (hadal.initialized)
-        return hadal.api.id;
-    return 0;
-}
-
-bool amw_hadal_platform_supported(int32_t id)
-{
-    const size_t count = amw_arraysize(supported_platforms);
-    size_t i;
-
-    if (id == AMW_HADAL_PLATFORM_HEADLESS)
-        return AMW_TRUE;
-    for (i = 0; i < count; i++) {
-        if (id == supported_platforms[i].id)
-            return AMW_TRUE;
-    }
-    return AMW_FALSE;
-}
-
-void amw_hadal_show_window(amw_window_t *window)
+#define SHOULD_CLOSE_BIT_POSITION 0 // 0x1
+void amw_hadal_should_close(amw_window_t *window, bool value)
 {
     if (!hadal.initialized)
         return;
-
     amw_assert(window);
 
-    if (window->output)
-        return;
-
-    hadal.api.show_window(window);
-    if (window->focus_on_show) {
-        // TODO focus window
+    if (((window->flags >> SHOULD_CLOSE_BIT_POSITION) & 1) != value) {
+        if (value == AMW_TRUE) {
+            window->flags |= (1 << SHOULD_CLOSE_BIT_POSITION);
+        } else {
+            window->flags &= ~(1 << SHOULD_CLOSE_BIT_POSITION);
+        }
     }
 }
 
-void amw_hadal_hide_window(amw_window_t *window)
+#define VISIBLE_BIT_POSITION 1 // 0x2
+void amw_hadal_visible(amw_window_t *window, bool value)
 {
     if (!hadal.initialized)
         return;
-
     amw_assert(window);
 
-    if (window->output)
+    if (((window->flags >> VISIBLE_BIT_POSITION) & 1) != value) {
+        if (value == AMW_TRUE) {
+            window->flags |= (1 << VISIBLE_BIT_POSITION);
+            hadal.api.show_window(window);
+        } else {
+            window->flags &= ~(1 << VISIBLE_BIT_POSITION);
+            hadal.api.hide_window(window);
+        }
+    }
+}
+
+void amw_hadal_minimize(amw_window_t *window)
+{
+    if (!hadal.initialized)
         return;
-    
-    hadal.api.hide_window(window);
+    amw_assert(window);
+
+    /* TODO */
+}
+
+void amw_hadal_maximize(amw_window_t *window)
+{
+    if (!hadal.initialized)
+        return;
+    amw_assert(window);
+
+    /* TODO */
+}
+
+void amw_hadal_restore(amw_window_t *window)
+{
+    if (!hadal.initialized)
+        return;
+    amw_assert(window);
+
+    /* TODO */
+}
+
+#define FULLSCREEN_BIT_POSITION 5 // 0x20
+void amw_hadal_fullscreen(amw_window_t *window, bool value)
+{
+
+    if (!hadal.initialized)
+        return;
+    amw_assert(window);
+
+    if (((window->flags >> FULLSCREEN_BIT_POSITION) & 1) != value) {
+        if (value == AMW_TRUE) {
+            window->flags |= (1 << FULLSCREEN_BIT_POSITION);
+            // TODO fullscreen on
+        } else {
+            window->flags &= ~(1 << FULLSCREEN_BIT_POSITION);
+            // TODO fullscreen off
+        }
+    }
 }
 
 void amw_hadal_retitle_window(amw_window_t *window, const char *title)
 {
     if (!hadal.initialized)
         return;
-
     amw_assert(window);
     amw_assert(title);
 
@@ -289,7 +338,6 @@ void amw_hadal_resize_window(amw_window_t *window, int32_t width, int32_t height
 {
     if (!hadal.initialized)
         return;
-
     amw_assert(window);
     amw_assert(width >= 0);
     amw_assert(height >= 0);
@@ -345,23 +393,24 @@ void amw_hadal_set_clipboard_string(const char *string)
 {
     amw_assert(string != NULL);
 
-    if (!hadal.initialized) return;
+    if (!hadal.initialized) 
+        return;
     hadal.api.set_clipboard_string(string);
 }
 
 const char *amw_hadal_get_clipboard_string(void)
 {
-    if (!hadal.initialized) return NULL;
+    if (!hadal.initialized) 
+        return NULL;
     return hadal.api.get_clipboard_string();
 }
 
-/* renderer/vulkan.h */
+/* vulkan rendering backend */
 #ifdef AMW_NATIVE_VULKAN
 bool amw_vk_physical_device_presentation_support(VkPhysicalDevice device, uint32_t queue_family)
 {
     if (!hadal.initialized)
         return AMW_FALSE;
-
     amw_assert(device != VK_NULL_HANDLE);
 
     return hadal.api.physical_device_presentation_support(device, queue_family);
@@ -377,17 +426,12 @@ VkResult amw_vk_surface_create(VkInstance instance,
 
     if (!hadal.initialized)
         return VK_ERROR_INITIALIZATION_FAILED;
-
     amw_assert(window != NULL);
     amw_assert(instance != VK_NULL_HANDLE);
 
     return hadal.api.create_surface(instance, window, allocator, surface);
 }
 #endif /* AMW_NATIVE_VULKAN */
-
-/*
- * INTERNAL
- */
 
 char **hadal_parse_uri_list(char *text, int32_t *count)
 {
@@ -431,9 +475,9 @@ char **hadal_parse_uri_list(char *text, int32_t *count)
 }
 
 
-/* when i make updates to the api, 
+/* when i make updates to the internal api, 
  * it basically checks if i implemented everything 
- * for the target platform i'm testing in */
+ * for the target platform i'm testing on */
 bool hadal_debug_check_api_uptodate(const hadal_api_t *api)
 {
     bool out = AMW_TRUE;
@@ -561,7 +605,7 @@ const amw_vidmode_t *hadal_choose_video_mode(amw_output_t *output, const amw_vid
     return closest;
 }
 
-void hadal_input_output(amw_output_t *output, int32_t action, int32_t placement)
+void hadal_create_output(amw_output_t *output, int32_t action, int32_t placement)
 {
     amw_assert(output != NULL);
     amw_assert(action == HADAL_CONNECTED || action == HADAL_DISCONNECTED);
@@ -633,14 +677,14 @@ void hadal_input_key_callback(amw_window_t *window, int32_t key, int32_t scancod
             return;
         if (action == AMW_INPUT_PRESS && window->keys[key] == AMW_INPUT_PRESS)
             repeated = AMW_TRUE;
-        if (action == AMW_INPUT_RELEASE && window->sticky_keys)
+        if (action == AMW_INPUT_RELEASE && (window->flags & AMW_WINDOW_FLAG_STICKY_KEYS))
             window->keys[key] = HADAL_STICK;
         else
             window->keys[key] = (char)action;
         if (repeated)
             action = AMW_INPUT_REPEAT;
     }
-    if (!window->lock_key_mods)
+    if (!(window->flags & AMW_WINDOW_FLAG_LOCK_KEYMODS))
         mods &= ~(AMW_KEYMOD_CAPS_LOCK | AMW_KEYMOD_NUM_LOCK);
     if (window->input_callbacks.key)
         window->input_callbacks.key(window->input_callbacks.data, window, key, scancode, action, mods);

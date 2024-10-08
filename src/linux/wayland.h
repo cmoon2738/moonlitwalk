@@ -58,12 +58,12 @@ struct amw_wayland_window {
     char                *app_id;
     int32_t              width, height;
     int32_t              fb_width, fb_height;
-
-    double cursor_xpos, cursor_ypos;
+    double               cursor_xpos, cursor_ypos;
+    bool                 activated;
 
     struct {
-        struct xdg_surface  *surface;
-        struct xdg_toplevel *toplevel;
+        struct xdg_surface                 *surface;
+        struct xdg_toplevel                *toplevel;
         struct xdg_activation_token_v1     *activation_token;
         struct zxdg_toplevel_decoration_v1 *decoration;
         uint32_t                            decoration_mode;
@@ -154,50 +154,48 @@ struct amw_wayland_platform {
         xkb_mod_index_t           num_lock_index;
         uint32_t                  modifiers;
     } xkb;
-
 };
 
 /* internal shared code */
-bool            hadal_wayland_connect(void);
+extern bool     AMW_CALL hadal_wayland_connect(void);
 
-int32_t         hadal_wayland_init(void);
-void            hadal_wayland_terminate(void);
+extern int32_t  AMW_CALL hadal_wayland_init(void);
+extern void     AMW_CALL hadal_wayland_terminate(void);
 
-void            hadal_wayland_free_output(struct amw_output *output);
-struct amw_vidmode *hadal_wayland_video_modes(struct amw_output *output, int32_t *count);
-bool            hadal_wayland_video_mode(struct amw_output *output, struct amw_vidmode *mode);
+extern void     AMW_CALL hadal_wayland_free_output(struct amw_output *output);
+extern struct amw_vidmode * 
+                AMW_CALL hadal_wayland_video_modes(struct amw_output *output, int32_t *count);
+extern bool     AMW_CALL hadal_wayland_video_mode(struct amw_output *output, struct amw_vidmode *mode);
 
-void            hadal_wayland_get_output_position(struct amw_output *output, int32_t *xpos, int32_t *ypos);
-void            hadal_wayland_get_output_content_scale(struct amw_output *output, float *xscale, float *yscale);
-void            hadal_wayland_get_output_workarea(struct amw_output *output, int32_t *xpos, int32_t *ypos, int32_t *width, int32_t *height);
+extern void         AMW_CALL hadal_wayland_set_clipboard_string(const char *string);
+extern const char * AMW_CALL hadal_wayland_get_clipboard_string(void);
 
-void            hadal_wayland_set_clipboard_string(const char *string);
-const char     *hadal_wayland_get_clipboard_string(void);
+extern void AMW_CALL hadal_wayland_get_output_position(struct amw_output *output, int32_t *xpos, int32_t *ypos);
+extern void AMW_CALL hadal_wayland_get_output_content_scale(struct amw_output *output, float *xscale, float *yscale);
+extern void AMW_CALL hadal_wayland_get_output_workarea(struct amw_output *output, int32_t *xpos, int32_t *ypos, int32_t *width, int32_t *height);
 
-bool            hadal_wayland_create_window(amw_window_t *window, int32_t width, int32_t height);
-void            hadal_wayland_destroy_window(amw_window_t *window);
-void            hadal_wayland_show_window(amw_window_t *window);
-void            hadal_wayland_hide_window(amw_window_t *window);
-void            hadal_wayland_retitle_window(amw_window_t *window, const char *title);
-void            hadal_wayland_resize_window(amw_window_t *window, int32_t width, int32_t height);
-void            hadal_wayland_window_size(amw_window_t *window, int32_t *width, int32_t *height);
-void            hadal_wayland_framebuffer_size(amw_window_t *window, int32_t *width, int32_t *height);
-void            hadal_wayland_content_scale(amw_window_t *window, float *xscale, float *yscale);
+extern bool AMW_CALL hadal_wayland_create_window(amw_window_t *window, int32_t width, int32_t height);
+extern void AMW_CALL hadal_wayland_destroy_window(amw_window_t *window);
+extern void AMW_CALL hadal_wayland_show_window(amw_window_t *window);
+extern void AMW_CALL hadal_wayland_hide_window(amw_window_t *window);
+extern void AMW_CALL hadal_wayland_retitle_window(amw_window_t *window, const char *title);
+extern void AMW_CALL hadal_wayland_resize_window(amw_window_t *window, int32_t width, int32_t height);
+extern void AMW_CALL hadal_wayland_window_size(amw_window_t *window, int32_t *width, int32_t *height);
+extern void AMW_CALL hadal_wayland_framebuffer_size(amw_window_t *window, int32_t *width, int32_t *height);
+extern void AMW_CALL hadal_wayland_content_scale(amw_window_t *window, float *xscale, float *yscale);
 
 #ifdef AMW_NATIVE_VULKAN
-#include <moonlitwalk/vk.h>
+#include "../renderer/vk.h"
 
-bool            hadal_wayland_physical_device_presentation_support(VkPhysicalDevice device, uint32_t queue_family);
-VkResult        hadal_wayland_create_surface(VkInstance instance, amw_window_t *window, const VkAllocationCallbacks *allocator, VkSurfaceKHR *surface);
-
-/* internal wayland */
-void            hadal_wayland_add_output(uint32_t name, uint32_t version);
-void            hadal_wayland_add_seat_listener(struct wl_seat *seat);
-void            hadal_wayland_add_data_device_listener(struct wl_data_device *device);
-void            hadal_wayland_update_buffer_scale_from_outputs(amw_window_t *window);
-
+extern bool     AMW_CALL hadal_wayland_physical_device_presentation_support(VkPhysicalDevice device, uint32_t queue_family);
+extern VkResult AMW_CALL hadal_wayland_create_surface(VkInstance instance, amw_window_t *window, const VkAllocationCallbacks *allocator, VkSurfaceKHR *surface);
 #endif /* AMW_NATIVE_VULKAN */
 
+/* internal wayland */
+extern void AMW_CALL hadal_wayland_add_output(uint32_t name, uint32_t version);
+extern void AMW_CALL hadal_wayland_add_seat_listener(struct wl_seat *seat);
+extern void AMW_CALL hadal_wayland_add_data_device_listener(struct wl_data_device *device);
+extern void AMW_CALL hadal_wayland_update_buffer_scale_from_outputs(amw_window_t *window);
 
 #else
 /* null the wayland state */

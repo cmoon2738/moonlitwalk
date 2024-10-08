@@ -11,10 +11,10 @@ extern "C" {
 typedef void *sew_context_t;
 
 /* implemented in asm */
-intptr_t sew_jump_context(sew_context_t *ofc, sew_context_t nfc, intptr_t vp, int preserve_fpu);
+extern intptr_t AMW_CALL sew_jump_context(sew_context_t *ofc, sew_context_t nfc, intptr_t vp, int preserve_fpu);
 
 /* implemented in asm, sp is the pointer to the top of the stack (&stack_buffer[size]) */
-sew_context_t sew_make_context(void *sp, size_t size, void (*fn)(intptr_t));
+extern sew_context_t AMW_CALL sew_make_context(void *sp, size_t size, void (*fn)(intptr_t));
 
 #ifdef __cplusplus
 }

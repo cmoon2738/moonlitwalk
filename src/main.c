@@ -2,7 +2,6 @@
 #include <moonlitwalk/hadopelagic.h>
 #include <moonlitwalk/sewing.h>
 #include <moonlitwalk/system.h>
-#include <moonlitwalk/vk.h>
 
 #include "lake.h"
 
@@ -15,11 +14,6 @@
 
 static int32_t opt_log_level = AMW_LOG_VERBOSE;
 static int32_t opt_platform_id = AMW_HADAL_ANY_PLATFORM;
-
-const char *amw_version_string(void)
-{
-    return AMW_VERSIONSTR;
-}
 
 static bool log_level_from_string(const char *str, int32_t *level)
 {
@@ -67,7 +61,8 @@ static bool platform_id_from_string(const char *str, int32_t *id)
 
 AMW_NORETURN static void print_version(FILE *f) 
 {
-    fprintf(f, "A Moonlit Walk Engine, version %s", amw_version_string());
+    fprintf(f, "Lake in the Lungs, A MoonlitWalk Engine ver. %d.%d.%d", 
+            AMW_VERSION_MAJOR, AMW_VERSION_MINOR, AMW_VERSION_REVISION);
     amw_exit(0);
 }
 
@@ -154,25 +149,46 @@ static int64_t timespec_diff(struct timespec *end, struct timespec *start) {
 static void cleanup(void)
 {
     amw_vk_terminate(&lake.vk);
+
     amw_hadal_destroy_window(lake.window);
     amw_hadal_terminate();
 
+    if (lake.sewing)
+        amw_free(lake.sewing);
+
     amw_log_terminate();
-    amw_arena_free(&lake.arena);
+    amw_arena_free(&lake.temporary_arena);
 }
 
-/* TODO this function will be the entry point for the fiber job system
-static void main_loop(amw_sewing_t *sewing,
-                      amw_thread_t *threads,
-                      size_t thread_count,
-                      amw_procedure_argument_t argument);
-*/
-static void main_loop(void)
+static void jobtest(amw_procedure_argument_t argument)
 {
+    uint32_t i = (uint32_t)(size_t)argument;
+    amw_log_debug("%d", i);
+}
+
+static void main_loop(amw_sewing_t *sewing,
+                      amw_thread_t **threads,
+                      size_t thread_count,
+                      amw_procedure_argument_t argument)
+{
+    /* unused */
+    (void)threads;
+    (void)thread_count;
+    (void)argument;
+
     struct timespec last_update;
     struct timespec now;
     int32_t error;
     int64_t delta_time;
+
+    /* FIXME remove this later */
+    amw_stitch_t jobs[10];
+    for (uint32_t i = 0; i < 10; i++) {
+        jobs[i].procedure = jobtest;
+        jobs[i].argument = (amw_procedure_argument_t)(size_t)i;
+        jobs[i].name = "jobtest";
+    }
+    amw_sew_stitches_and_wait(sewing, jobs, 10);
 
     do {
         error = clock_gettime(CLOCK_MONOTONIC, &last_update);
@@ -186,7 +202,7 @@ static void main_loop(void)
     /* TODO now i can update the clock here :3 but im lazy so the future me will do it */
 
     int64_t remainder = 0;
-    while (!amw_hadal_should_close(lake.window)) {
+    while (!amw_hadal_read(lake.window, AMW_WINDOW_FLAG_SHOULD_CLOSE)) {
         do {
             error = clock_gettime(CLOCK_MONOTONIC, &now);
         } while (error == EINTR);
@@ -205,11 +221,17 @@ static void main_loop(void)
         remainder = delta_time;
 
         //amw_vk_draw_frame(&lake.vk); 
-        amw_hadal_request_close(lake.window, AMW_TRUE);
+    
+        /* FIXME remove this later */
+        amw_hadal_should_close(lake.window, AMW_TRUE);
     }
 
     //vkDeviceWaitIdle(lake.vk.device);
-    return;
+
+    /* when the main loop returns, the sewing system 
+     * will destroy all threads (except the main one)
+     * and 'sew_it' called from 'a_moonlit_walk' 
+     * will return, proceding to cleanup. */
 }
 
 static int32_t a_moonlit_walk(void)
@@ -218,6 +240,18 @@ static int32_t a_moonlit_walk(void)
 
     amw_log_init(NULL);
     amw_log_set_level(opt_log_level);
+
+    amw_cpu_count(&lake.cpu.threads, &lake.cpu.cores, &lake.cpu.packages);
+
+    const size_t sewing_bytes = amw_sew_it(
+            NULL,               /* set to null to get the required memory stack */
+            32 * 1024,          /* 32kb stack per fiber */
+            lake.cpu.threads,   /* how many threads to run (including the main thread) */
+            10,                 /* job queue will be (1 << 10) entries large */
+            128,                /* we can have up to 128 fibers at once */
+            main_loop,          /* entry point for the sewing system */
+            NULL);              /* argument for the entry point */
+    lake.sewing = (amw_sewing_t *)amw_malloc(sewing_bytes);
 
     res = amw_hadal_init(opt_platform_id);
     if (res != AMW_SUCCESS) {
@@ -233,118 +267,30 @@ static int32_t a_moonlit_walk(void)
         return -1; // TODO error code
     }
 
-    /*
     res = amw_vk_init(&lake.vk, lake.window);
     if (res != AMW_SUCCESS) {
-        amw_log_fatal("Could not initialize Hadal, code '%d'.", res);
+        amw_log_fatal("Could not initialize Vulkan backend, code '%d'.", res);
         cleanup();
         return res;
     }
-    */
+    amw_hadal_visible(lake.window, AMW_TRUE);
 
     res = amw_lake_init_game();
-    amw_hadal_show_window(lake.window);
+    if (res != AMW_SUCCESS) {
+        amw_log_fatal("Game error while initializing it's resources, code '%d'.", res);
+        return res;
+    }
 
-    main_loop();
+    /* run the main game loop */
+    amw_sew_it(
+            lake.sewing,
+            32 * 1024,
+            lake.cpu.threads,
+            10,
+            128,
+            main_loop,
+            NULL);
+
     cleanup();
     return AMW_SUCCESS;
 }
-
-#ifdef AMW_PLATFORM_WINDOWS
-#include <windows.h>
-#include <wchar.h>
-
-static char **command_line_to_utf8_argv(LPWSTR w_command_line, int32_t *o_argc)
-{
-    int32_t argc = 0;
-    char **argv = 0;
-    char  *args;
-
-    LPWSTR *w_argv = CommandLineToArgvW(w_command_line, &argc);
-    if (w_argv == NULL) {
-        amw_log_error("Win32 couldn't fetch command line arguments");
-    } else {
-        size_t size = wcslen(w_command_line) * 4;
-        void *ptr_argv = amw_malloc(((size_t)argc + 1) * sizeof(char *) + size);
-        amw_zerop(ptr_argv);
-        argv = (char **)ptr_argv;
-        amw_assert_release(argv);
-        args = (char *)&argv[argc + 1];
-
-        int32_t n;
-        for (int32_t i = 0; i < argc; ++i) {
-            n = WideCharToMultiByte(CP_UTF8, 0, w_argv[i], -1, args, (int32_t)size, NULL, NULL);
-            if (n == 0) {
-                amw_log_error("Win32 got a 0 length argument");
-                break;
-            }
-            argv[i] = args;
-            size -= (size_t)n;
-            args += n;
-        }
-        LocalFree(w_argv);
-    }
-    *o_argc = argc;
-    return argv;
-}
-
-#ifdef AMW_PLATFORM_WINDOWS_FORCE_MAIN
-int32_t main(int32_t argc, char **argv)
-{
-    int32_t res = AMW_SUCCESS;
-
-    parse_arguments(argc, argv);
-    res = a_moonlit_walk();
-    amw_exit(res);
-}
-#else
-int32_t WINAPI WinMain(_In_ HINSTANCE hInstance, 
-                       _In_opt_ HINSTANCE hPrevInstance, 
-                       _In_ LPSTR lpCmdLine, 
-                       _In_ int32_t nCmdShow)
-{
-    /* TODO */
-    (void)hInstance;
-    (void)hPrevInstance;
-    (void)lpCmdLine;
-    (void)nCmdShow;
-
-    int32_t res = AMW_SUCCESS;
-    int32_t argc_utf8 = 0;
-    char **argv_utf8 = command_line_to_utf8_argv(GetCommandLineW(), &argc_utf8);
-
-    parse_arguments(argc, argv);
-    res = a_moonlit_walk();
-
-    amw_free(argv_utf8);
-    amw_exit(res);
-}
-#endif /* AMW_PLATFORM_WINDOWS_FORCE_MAIN */
-
-#elif AMW_PLATFORM_MACOSX
-    /* TODO */
-#elif AMW_PLATFORM_IOS
-    /* TODO */
-
-#elif AMW_PLATFORM_ANDROID
-#include <android/log.h>
-#include <android_native_app_glue.h>
-#include <jni.h>
-
-JNIEXPORT void ANativeActivity_onCreate(ANativeActivity* activity, 
-                                        void* saved_state, 
-                                        size_t saved_state_size) 
-{
-    /* TODO */
-}
-
-#else
-int32_t main(int32_t argc, char **argv)
-{
-    int32_t res = AMW_SUCCESS;
-
-    parse_arguments(argc, argv);
-    res = a_moonlit_walk();
-    amw_exit(res);
-}
-#endif /* main entry points */

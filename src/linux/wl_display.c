@@ -32,9 +32,6 @@ static void handle_registry_global(void *data,
     if (strcmp(interface, "wl_compositor") == 0) {
         hadal.wl.compositor = wl_registry_bind(registry, name, &wl_compositor_interface, amw_min(3, version));
 
-        if (!hadal.wl.compositor)
-            amw_log_error("KURWAAAAAAA");
-
     } else if (strcmp(interface, "wl_subcompositor") == 0) {
         hadal.wl.subcompositor = wl_registry_bind(registry, name, &wl_subcompositor_interface, 1);
 
@@ -96,7 +93,7 @@ static void handle_registry_global_remove(void *data,
     for (int32_t i = 0; i < hadal.output_count; i++) {
         amw_output_t *output = hadal.outputs[i];
         if (output->wl.name == name) {
-            hadal_input_output(output, HADAL_DISCONNECTED, 0);
+            hadal_create_output(output, HADAL_DISCONNECTED, 0);
             return;
         }
     }
@@ -292,7 +289,7 @@ int32_t hadal_wayland_init(void)
     amw_log_verbose("Initializing Wayland display backend");
     hadal.wl.key_repeat_timerfd = -1;
     hadal.wl.cursor_timerfd = -1;
-    hadal.wl.tag = amw_version_string();
+    hadal.wl.tag = AMW_VERSIONSTR;
 
     hadal.wl.registry = wl_display_get_registry(hadal.wl.display);
     wl_registry_add_listener(hadal.wl.registry, &registry_listener, NULL);

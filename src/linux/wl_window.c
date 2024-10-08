@@ -1,5 +1,3 @@
-#include <moonlitwalk/vk.h>
-
 #include "../core/hadal.h"
 #include "fractional-scale-v1-protocol.h"
 #include "idle-inhibit-unstable-v1-protocol.h"
@@ -413,23 +411,14 @@ static void destroy_shell_objects(amw_window_t *window)
 
 static bool create_native_surface(amw_window_t *window, int32_t width, int32_t height)
 {
-    amw_log_debug("a tu cie mam chuju");
-    if (!hadal.wl.compositor) {
-        amw_log_error("No wayland compositor found");
-        return AMW_FALSE;
-    }
-
     window->wl.surface = wl_compositor_create_surface(hadal.wl.compositor);
     if (!window->wl.surface) {
         amw_log_error("Wayland failed to create a window surface");
         return AMW_FALSE;
     }
 
-    amw_log_debug("wl proxy");
     wl_proxy_set_tag((struct wl_proxy *)window->wl.surface, &hadal.wl.tag);
-    amw_log_debug("adding surface listener");
     wl_surface_add_listener(window->wl.surface, &surface_listener, window);
-    amw_log_debug("surface listener done");
 
     window->wl.width = width;
     window->wl.height = height;
@@ -1424,32 +1413,3 @@ void hadal_wayland_add_data_device_listener(struct wl_data_device *device)
 {
     wl_data_device_add_listener(device, &data_device_listener, NULL);
 }
-
-#ifdef AMW_NATIVE_VULKAN
-bool hadal_wayland_physical_device_presentation_support(VkPhysicalDevice device, uint32_t queue_family)
-{
-    return vkGetPhysicalDeviceWaylandPresentationSupportKHR(device, queue_family, hadal.wl.display);
-}
-
-VkResult hadal_wayland_create_surface(VkInstance instance, 
-                                       amw_window_t *window, 
-                                       const VkAllocationCallbacks *allocator, 
-                                       VkSurfaceKHR *surface)
-{
-    VkResult res;
-    VkWaylandSurfaceCreateInfoKHR wl_sc_info;
-
-    amw_zero(wl_sc_info);
-    wl_sc_info.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
-    wl_sc_info.display = hadal.wl.display;
-    wl_sc_info.surface = window->wl.surface;
-
-    res = vkCreateWaylandSurfaceKHR(instance, &wl_sc_info, allocator, surface);
-    if (res) {
-        amw_log_error("Wayland failed to create a Vulkan surface: %s", amw_vkresult(res));
-    }
-
-    return res;
-}
-#endif /* AMW_NATIVE_VULKAN */
-

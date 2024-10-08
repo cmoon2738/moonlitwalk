@@ -1,8 +1,8 @@
 project('A Moonlit Walk', [ 'c' ],
     version : '2024',
     default_options : [ 
-        'c_std=c99',
-        #'cpp_std=c++17',
+        'c_std=c11',
+        'cpp_std=c++11',
         'buildtype=debugoptimized',
         'default_library=static',
         'warning_level=3',
@@ -16,7 +16,9 @@ sources = []
 assembly = []
 shaders = []
 
-defs = []
+defs = [
+    '-DAMW_LOG_DISABLE_FUNCTION',
+]
 common_c_args = [
     '-Wall',
     '-Wno-pedantic',
@@ -39,6 +41,10 @@ systype = (have_posix ? '@0@ (POSIX)' : '@0@').format(host_machine.system())
 systype = '@0@, @1@'.format(systype, host_machine.cpu())
 if meson.is_cross_build()
     systype = '@0@ (cross-compiling)'.format(systype)
+endif
+
+if cc.has_header('valgrind/memcheck.h')
+    defs += '-DAMW_HAS_VALGRIND'
 endif
 
 platform = []

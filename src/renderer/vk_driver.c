@@ -1,6 +1,6 @@
 #include <moonlitwalk/system.h>
-#include <moonlitwalk/vk.h>
 
+#include "vk.h"
 
 static void *loaded_module = NULL;
 
@@ -25,7 +25,7 @@ static PFN_vkVoidFunction nullProcAddrStub(void *context, const char *name)
     return NULL;
 }
 
-bool amw_vk_open_library(void)
+bool amw_vk_open_driver(void)
 {
     void *module;
 #if defined(MW_PLATFORM_WINDOWS)
@@ -64,7 +64,7 @@ bool amw_vk_open_library(void)
     return AMW_TRUE;
 }
 
-void amw_vk_close_library(void)
+void amw_vk_close_driver(void)
 {
     if (loaded_module) 
         amw_close_dll(loaded_module);

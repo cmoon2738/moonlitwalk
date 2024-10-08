@@ -1,8 +1,8 @@
-#ifndef _amw_vulkan_h_
+#if !defined(_amw_vulkan_h_) && defined(AMW_NATIVE_VULKAN)
 #define _amw_vulkan_h_
 
-#include "amw.h"
-#include "hadopelagic.h"
+#include <moonlitwalk/amw.h>
+#include <moonlitwalk/hadopelagic.h>
 
 #ifndef VK_NO_PROTOTYPES
     #define VK_NO_PROTOTYPES
@@ -42,21 +42,15 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#ifdef AMW_DEBUG
-    #ifndef AMW_ENABLE_VALIDATION_LAYERS
-        #define AMW_ENABLE_VALIDATION_LAYERS
+#ifndef AMW_BUILD_VALIDATION_LAYERS
+    #ifdef AMW_DEBUG
+        #define AMW_BUILD_VALIDATION_LAYERS 1
+    #else
+        #define AMW_BUILD_VALIDATION_LAYERS 0
     #endif
 #endif
 
-#define MAX_FRAMES   2
-
-/* for cube demo */
-typedef struct { mat2_t view; } ubo_t;
-typedef struct { vec2_t pos; vec4_t color; } vertex_t;
-typedef uint16_t index_t;
-
-//typedef amw_slice(VkImage)      VkImageSlice;
-//typedef amw_slice(VkImageView)  VkImageViewSlice;
+#define AMW_VK_MAX_FRAMES 3 /* triple buffering */
 
 typedef struct amw_vulkan {
     VkInstance              instance;
@@ -68,10 +62,8 @@ typedef struct amw_vulkan {
     VkQueue                 present_queue;
 
     VkSwapchainKHR          swapchain;
-    //VkImageSlice            swapchain_image;
-    //VkImageViewSlice        swapchain_image_views;
-
-    amw_arena_t             swapchain_arena;
+    //VkImage               images; TODO
+    //VkImageView           image_views; TODO
 
     VkImage                 color_image;
     VkDeviceMemory          color_image_memory;
@@ -86,60 +78,70 @@ typedef struct amw_vulkan {
     VkBuffer                index_buffer;
     VkDeviceMemory          index_buffer_memory;
 
-    VkBuffer                uniform_buffers[MAX_FRAMES];
-    VkDeviceMemory          uniform_buffers_memory[MAX_FRAMES];
-    void                   *uniform_buffers_mapped[MAX_FRAMES];
+    VkBuffer                uniform_buffers[AMW_VK_MAX_FRAMES];
+    VkDeviceMemory          uniform_buffers_memory[AMW_VK_MAX_FRAMES];
+    void                   *uniform_buffers_mapped[AMW_VK_MAX_FRAMES];
 
     VkDescriptorPool        descriptor_pool;
-    VkDescriptorSet         descriptor_sets[MAX_FRAMES];
+    VkDescriptorSet         descriptor_sets[AMW_VK_MAX_FRAMES];
 
     VkCommandPool           command_pool;
-    VkCommandBuffer         command_buffers[MAX_FRAMES];
+    VkCommandBuffer         command_buffers[AMW_VK_MAX_FRAMES];
 
-    VkSemaphore             image_available_semaphores[MAX_FRAMES];
-    VkSemaphore             render_finished_semaphores[MAX_FRAMES];
-    VkFence                 fences[MAX_FRAMES];
+    VkSemaphore             image_available_semaphores[AMW_VK_MAX_FRAMES];
+    VkSemaphore             render_finished_semaphores[AMW_VK_MAX_FRAMES];
+    VkFence                 fences[AMW_VK_MAX_FRAMES];
 
     VkSampleCountFlagBits   msaa_samples;
 
-    uint32_t width, height;
-    uint32_t current_frame;
+    /* TODO move the stuff below to the renderer, not backend */
+
+    amw_arena_t swapchain_arena; /* for swapchain images */
+    amw_arena_t temporary_arena; /* reset on a function scope */
+
+    int32_t  width, height; /* taken from the framebuffer */
+    uint32_t current_frame; /* frame index */
+
     bool     framebuffer_resized;
     bool     initialized;
 } amw_vulkan_t;
 
-bool amw_vk_init(amw_vulkan_t *vk, amw_window_t *window);
-void amw_vk_terminate(amw_vulkan_t *vk);
+/** Vulkan rendering backend */
+extern int32_t AMW_CALL amw_vk_init(amw_vulkan_t *vk, amw_window_t *window);
+extern void    AMW_CALL amw_vk_terminate(amw_vulkan_t *vk);
 
-void amw_vk_draw_frame(amw_vulkan_t *vk);
+extern void AMW_CALL amw_vk_draw_frame(amw_vulkan_t *vk);
 
-/* loads the Vulkan driver and initializes the API */
-bool     amw_vk_open_library(void);
-void     amw_vk_close_library(void);
-uint32_t amw_vk_version(void);
+/** Loads the Vulkan driver and initializes the API. */
+extern bool AMW_CALL amw_vk_open_driver(void);
+extern void AMW_CALL amw_vk_close_driver(void);
 
-/* returns a string for a given VkResult */
-const char *amw_vkresult(VkResult code);
+/** Vulkan driver version. */
+extern uint32_t AMW_CALL amw_vk_version(void);
 
-/* loads instance functions */
-void amw_vk_load_instance_pointers(VkInstance instance);
+/** Returns a string for a given VkResult. */
+extern const char * AMW_CALL amw_vkresult(VkResult code);
 
-/* loads device functions, not suitable for use with multiple VkDevice objects */
-void amw_vk_load_device_pointers(VkDevice device);
+/** 
+ * Loads instance and device function pointers,
+ * device functions are not suitable for use with multiple
+ * concurrent devices, but that won't be a problem here. 
+ */
+extern void AMW_CALL amw_vk_load_instance_pointers(VkInstance instance);
+extern void AMW_CALL amw_vk_load_device_pointers(VkDevice device);
 
-/* vulkan validation layers, by default enabled in debug builds */
-#ifdef AMW_ENABLE_VALIDATION_LAYERS
-void amw_vk_create_validation_layers(VkInstance instance);
-void amw_vk_destroy_validation_layers(VkInstance instance);
+/** Vulkan validation layers, by default enabled in debug builds. */
+#if AMW_BUILD_VALIDATION_LAYERS
+extern void AMW_CALL amw_vk_create_validation_layers(VkInstance instance);
+extern void AMW_CALL amw_vk_destroy_validation_layers(VkInstance instance);
 #endif /* AMW_ENABLE_VALIDATION_LAYERS */
 
-/* resolved by hadal */
-bool amw_vk_physical_device_presentation_support(VkPhysicalDevice device, uint32_t queue_family);
-VkResult amw_vk_surface_create(VkInstance instance, amw_window_t *window, const VkAllocationCallbacks *allocator, VkSurfaceKHR *surface);
+/** Hadal internal api for connecting the system windowing with Vulkan. */
+extern bool     AMW_CALL amw_vk_physical_device_presentation_support(VkPhysicalDevice device, uint32_t queue_family);
+extern VkResult AMW_CALL amw_vk_surface_create(VkInstance instance, amw_window_t *window, const VkAllocationCallbacks *allocator, VkSurfaceKHR *surface);
 
-/* called by hadal when the framebuffer resizes
- * TODO it probably should be done in a more clean way, but nah */
-void amw_vk_framebuffer_resized_callback(void *data, amw_window_t *window, int32_t width, int32_t height);
+/** Renderer callbacks for the Vulkan backend. */
+extern void AMW_CALL amw_vk_framebuffer_resized_callback(void *data, amw_window_t *window, int32_t width, int32_t height);
 
 #if defined(AMW_DEBUG) || defined(_DEBUG)
     #define AMW_VK_VERIFY(x) {                                                      \
@@ -153,6 +155,7 @@ void amw_vk_framebuffer_resized_callback(void *data, amw_window_t *window, int32
     #define AMW_VK_VERIFY(x) (void)(x)
 #endif
 
+/* up to date with version 1.3.294 */
 #if defined(VK_VERSION_1_0)
 extern PFN_vkAllocateCommandBuffers vkAllocateCommandBuffers;
 extern PFN_vkAllocateDescriptorSets vkAllocateDescriptorSets;

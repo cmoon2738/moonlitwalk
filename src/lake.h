@@ -3,7 +3,9 @@
 
 #include <moonlitwalk/amw.h>
 #include <moonlitwalk/hadopelagic.h>
-#include <moonlitwalk/vk.h>
+#include <moonlitwalk/sewing.h>
+
+#include "renderer/vk.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,19 +17,24 @@ extern "C" {
 typedef struct {
     amw_window_t *window;
     amw_vulkan_t  vk;
+    amw_sewing_t *sewing;
 
-    amw_arena_t   arena;
+    amw_arena_t   temporary_arena;
 
     float   rotation_velocity;
     float   rotation_angle;
     int32_t direction;
     bool    freeze;
     bool    done;
+
+    struct {
+        int32_t threads, cores, packages;
+    } cpu;
 } amw_lake_t;
 
-bool    amw_lake_init_game(void);
-void    amw_lake_terminate_game(void);
-int32_t amw_lake_update_game(void);
+extern bool    AMW_CALL amw_lake_init_game(void);
+extern void    AMW_CALL amw_lake_terminate_game(void);
+extern int32_t AMW_CALL amw_lake_update_game(void);
 
 extern amw_lake_t lake;
 

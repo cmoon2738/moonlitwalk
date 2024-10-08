@@ -22,12 +22,12 @@ static const char *level_strings[] = {
 };
 
 static const char *level_colors[] = {
-    "\x1b[94m", 
-    "\x1b[36m", 
-    "\x1b[32m",
-    "\x1b[33m",
-    "\x1b[31m",
-    "\x1b[35m",
+    "\033[38;5;180m",
+    "\033[38;5;215m",
+    "\033[38;5;209m", 
+    "\033[38;5;167m", 
+    "\033[38;5;160m",
+    "\033[38;5;68m",
 };
 
 static void default_callback(amw_log_t *log)
@@ -36,14 +36,14 @@ static void default_callback(amw_log_t *log)
     timestamp[strftime(timestamp, sizeof(timestamp), "%H:%M:%S", log->time)] = '\0';
 
 #if AMW_LOG_USE_COLOR
-    fprintf(log->userdata, "%s \x1b %s%s \x1b[0m", timestamp, 
+    fprintf(log->userdata, "%s %s%s \x1b[0m", timestamp, 
             level_colors[log->level], level_strings[log->level]);
     if (log->file != NULL && log->function != NULL) {
-        fprintf(log->userdata, "\x1b[90m(%s %s:%d)\x1b[0m ", log->file, log->function, log->line);
+        fprintf(log->userdata, "\033[38;5;8m%s %s:%d\x1b[0m ", log->file, log->function, log->line);
     } else if (log->file != NULL) {
-        fprintf(log->userdata, "\x1b[90m(%s:%d)\x1b[0m ", log->file, log->line);
+        fprintf(log->userdata, "\033[38;5;8m%26s:%-5d\x1b[0m ", log->file, log->line);
     } else if (log->function != NULL) {
-        fprintf(log->userdata, "\x1b[90m(%s:%d)\x1b[0m ", log->function, log->line);
+        fprintf(log->userdata, "\033[38;5;8m%s:%d\x1b[0m ", log->function, log->line);
     }
 #else
     fprintf(log->userdata, "%s %s ", timestamp, level_strings[log->level]);

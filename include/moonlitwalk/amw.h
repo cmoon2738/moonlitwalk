@@ -8,29 +8,34 @@
 #include <stdarg.h>
 #include <limits.h>
 
+#if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L)
+    #include <stdalign.h>
+    #include <stdatomic.h>
+#else 
+    #error "Needed C11 standard for align & atomic operations"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
 #define AMW_VERSION_MAJOR 0
 #define AMW_VERSION_MINOR 1
-#define AMW_VERSION_PATCH 1
-#define AMW_VERSIONSTR "A MoonlitWalk Engine 0.1.1"
+#define AMW_VERSION_REVISION 2
+#define AMW_VERSIONSTR "0.1.2"
 
-#define amw_versionnum(major, minor, patch) \
-    ((major) * 1000000 + (minor) * 1000 + (patch))
+#define amw_versionnum(major, minor, revision) \
+    ((major) * 10000000 + (minor) * 10000 + (revision))
 
-#define amw_versionnum_major(version) ((version) / 1000000)
-#define amw_versionnum_minor(version) (((version) / 1000) % 1000)
-#define amw_versionnum_patch(version) ((version) % 1000)
+#define amw_versionnum_major(version) ((version) / 10000000)
+#define amw_versionnum_minor(version) (((version) / 1000) % 10000)
+#define amw_versionnum_revision(version) ((version) % 10000)
 
 #define AMW_CONCAT_HELPER(prefix, suffix)    prefix##suffix
 #define amw_concat(prefix, suffix)           AMW_CONCAT_HELPER(prefix, suffix)
 
-#define AMW_VERSION \
-    amw_versionnum(AMW_VERSION_MAJOR, AMW_VERSION_MINOR, AMW_VERSION_PATCH)
-
-const char *amw_version_string(void);
+#define amw_version \
+    amw_versionnum(AMW_VERSION_MAJOR, AMW_VERSION_MINOR, AMW_VERSION_REVISION)
 
 #ifndef AMW_PLATFORM_WINDOWS
     #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__CYGWIN__)
@@ -100,23 +105,57 @@ const char *amw_version_string(void);
     #endif
 #endif /* Emscripten (HTML5) */
 
-#if defined(__clang__) || defined(__GNUC__)
-    #define AMW_INLINE __attribute__((always_inline)) inline
-    #define AMW_NOINLINE __attribute__((noinline))
-#elif defined(_MSC_VER)
-    #define AMW_INLINE __forceinline
-    #define AMW_NOINLINE --declspec(noinline)
-#else
-    #define AMW_INLINE static inline
-    #define AMW_NOINLINE
+/* DLL export */
+#ifndef AMW_API
+    #ifdef AMW_DLL_EXPORT
+        #if defined(AMW_PLATFORM_WINDOWS) || defined(__CYGWIN__)
+            #define AMW_API extern __declspec(dllexport)
+        #elif defined(__GNUC__) && __GNUC__ >= 4
+            #define AMW_API extern __attribute__ ((visibility("default")))
+        #endif
+    #else
+        #define AMW_API extern
+    #endif
 #endif
 
-#if defined(__GNUC__)
-    #define AMW_NORETURN __attribute__((noreturn))
-#elif defined(_MSC_VER)
-    #define AMW_NORETURN __declspec(noreturn)
-#else
-    #define AMW_NORETURN
+/* By default use the C calling convention */
+#ifndef AMW_CALL
+    #if defined(AMW_PLATFORM_WINDOWS) && !defined(__GNUC__)
+        #define AMW_CALL __cdecl
+    #else
+        #define AMW_CALL
+    #endif
+#endif
+
+#if !defined(AMW_INLINE) && !defined(AMW_NOINLINE)
+    #if defined(__clang__) || defined(__GNUC__)
+        #define AMW_INLINE __attribute__((always_inline)) inline
+        #define AMW_NOINLINE __attribute__((noinline))
+    #elif defined(_MSC_VER)
+        #define AMW_INLINE __forceinline
+        #define AMW_NOINLINE --declspec(noinline)
+    #else
+        #define AMW_INLINE static inline
+        #define AMW_NOINLINE
+    #endif
+#endif
+
+#ifndef AMW_NORETURN
+    #if defined(__GNUC__)
+        #define AMW_NORETURN __attribute__((noreturn))
+    #elif defined(_MSC_VER)
+        #define AMW_NORETURN __declspec(noreturn)
+    #else
+        #define AMW_NORETURN
+    #endif
+#endif
+
+#ifndef AMW_UNUSED
+    #ifdef __GNUC__
+        #define AMW_UNUSED __attribute((unused))
+    #else
+        #define AMW_UNUSED
+    #endif
 #endif
 
 #ifndef __MACH__
@@ -149,10 +188,6 @@ const char *amw_version_string(void);
     #define AMW_TARGETING(x) __attribute__((target(x)))
 #else
     #define AMW_TARGETING(x)
-#endif
-
-#if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L)
-    #include <stdalign.h>
 #endif
 
 #if defined(_MSC_VER)
@@ -633,11 +668,11 @@ AMW_INLINE float amw_swap_float(float x)
     #define amw_swap_floatBE(x) (x)
 #endif       
 
-#define AMW_MS_PER_SECOND   1000
-#define AMW_US_PER_SECOND   1000000
-#define AMW_NS_PER_SECOND   1000000000LL
-#define AMW_NS_PER_MS       1000000
-#define AMW_NS_PER_US       1000
+#define AMW_MS_PER_SECOND       1000
+#define AMW_US_PER_SECOND       1000000
+#define AMW_NS_PER_SECOND       1000000000LL
+#define AMW_NS_PER_MS           1000000
+#define AMW_NS_PER_US           1000
 #define AMW_SECONDS_TO_NS(S)    (((uint64_t)(S)) * AMW_NS_PER_SECOND)
 #define AMW_NS_TO_SECONDS(NS)   ((NS) / AMW_NS_PER_SECOND)
 #define AMW_MS_TO_NS(MS)        (((uint64_t)(MS)) * AMW_NS_PER_MS)
@@ -745,8 +780,141 @@ AMW_INLINE float amw_swap_float(float x)
     #define amw_assert_release(condition)  amw_enabled_assert(condition)
     #define amw_assert_paranoid(condition) amw_enabled_assert(condition)
 #else
-    #error Unknown assertion level.
+    #error Unknown assertion level. Use: 0-disabled, 1-release, 2-debug, 3-paranoid.
 #endif
+
+#ifdef __cplusplus
+    #define amw_cast_ptr(ptr) (decltype(ptr))
+#else
+    #define amw_cast_ptr(...)
+#endif
+
+#define amw_arraysize(array) (sizeof(array)/sizeof(array[0]))
+#define amw_clamp(x, a, b) (((x) < (a)) ? (a) : (((x) > (b)) ? (b) : (x)))
+#define amw_min(x, y) (((x) < (y)) ? (x) : (y))
+#define amw_max(x, y) (((x) > (y)) ? (x) : (y))
+#define amw_swap(type, a, b) \
+    {                        \
+        type temp = a;       \
+        a = b;               \
+        b = temp;            \
+    }
+
+#define amw_malloc  malloc
+#define amw_calloc  calloc
+#define amw_realloc realloc
+#define amw_free    free
+
+#define amw_memset  memset
+#define amw_memcpy  memcpy
+#define amw_memmove memmove
+#define amw_memcmp  memcmp
+
+#define amw_zero(x)  amw_memset(&(x), 0, sizeof((x)))
+#define amw_zerop(x) amw_memset((x), 0, sizeof(*(x)))
+#define amw_zeroa(x) amw_memset((x), 0, sizeof((x)))
+
+#define AMW_FALSE 0
+#define AMW_TRUE 1
+#ifndef __cplusplus
+    typedef _Bool bool;
+#endif
+
+typedef int32_t                 ivec2_t[2];
+typedef int32_t                 ivec3_t[3];
+typedef int32_t                 ivec4_t[4];
+
+typedef float                   vec2_t[2];
+typedef float                   vec3_t[3];
+typedef AMW_ALIGN_IF(16) float  vec4_t[4];
+
+typedef vec4_t                  quat_t;       /* |x, y, z, w| -> w is the last */
+
+typedef AMW_ALIGN_IF(16) vec2_t mat2_t[2];
+typedef vec3_t                  mat2x3_t[2];  /* [col (2), row (3)] */
+typedef vec4_t                  mat2x4_t[2];  /* [col (2), row (4)] */
+
+typedef vec3_t                  mat3_t[3];
+typedef vec2_t                  mat3x2_t[3];  /* [col (3), row (2)] */
+typedef vec4_t                  mat3x4_t[3];  /* [col (3), row (4)] */
+
+typedef AMW_ALIGN_MAT vec4_t    mat4_t[4];
+typedef vec2_t                  mat4x2_t[4];  /* [col (4), row (2)] */
+typedef vec3_t                  mat4x3_t[4];  /* [col (4), row (3)] */
+
+#define AMW_E         2.71828182845904523536028747135266250   /* e           */
+#define AMW_LOG2E     1.44269504088896340735992468100189214   /* log2(e)     */
+#define AMW_LOG10E    0.434294481903251827651128918916605082  /* log10(e)    */
+#define AMW_LN2       0.693147180559945309417232121458176568  /* loge(2)     */
+#define AMW_LN10      2.30258509299404568401799145468436421   /* loge(10)    */
+#define AMW_PI        3.14159265358979323846264338327950288   /* pi          */
+#define AMW_PI_2      1.57079632679489661923132169163975144   /* pi/2        */
+#define AMW_PI_4      0.785398163397448309615660845819875721  /* pi/4        */
+#define AMW_1_PI      0.318309886183790671537767526745028724  /* 1/pi        */
+#define AMW_2_PI      0.636619772367581343075535053490057448  /* 2/pi        */
+#define AMW_2_SQRTPI  1.12837916709551257389615890312154517   /* 2/sqrt(pi)  */
+#define AMW_SQRT2     1.41421356237309504880168872420969808   /* sqrt(2)     */
+#define AMW_SQRT1_2   0.707106781186547524400844362104849039  /* 1/sqrt(2)   */
+
+#define AMW_Ef        ((float)AMW_E)
+#define AMW_LOG2Ef    ((float)AMW_LOG2E)
+#define AMW_LOG10Ef   ((float)AMW_LOG10E)
+#define AMW_LN2f      ((float)AMW_LN2)
+#define AMW_LN10f     ((float)AMW_LN10)
+#define AMW_PIf       ((float)AMW_PI)
+#define AMW_PI_2f     ((float)AMW_PI_2)
+#define AMW_PI_4f     ((float)AMW_PI_4)
+#define AMW_1_PIf     ((float)AMW_1_PI)
+#define AMW_2_PIf     ((float)AMW_2_PI)
+#define AMW_2_SQRTPIf ((float)AMW_2_SQRTPI)
+#define AMW_SQRT2f    ((float)AMW_SQRT2)
+#define AMW_SQRT1_2f  ((float)AMW_SQRT1_2)
+
+typedef struct amw_slice amw_slice_t;
+struct amw_slice {
+    amw_slice_t *next;
+    size_t       count;
+    size_t       capacity;
+    uintptr_t    data[];
+};
+
+typedef struct amw_arena {
+    amw_slice_t *begin;
+    amw_slice_t *end;
+} amw_arena_t;
+
+#define AMW_SLICE_DEFAULT_CAPACITY (8*1024)
+
+AMW_API amw_slice_t * AMW_CALL amw_slice_new(size_t capacity);
+AMW_API void          AMW_CALL amw_slice_free(amw_slice_t *slice);
+
+AMW_API void * AMW_CALL amw_arena_alloc(amw_arena_t *a, size_t size_bytes);
+AMW_API void * AMW_CALL amw_arena_realloc(amw_arena_t *a, void *oldptr, size_t old_size, size_t new_size);
+AMW_API char * AMW_CALL amw_arena_strdup(amw_arena_t *a, const char *str);
+AMW_API void * AMW_CALL amw_arena_memdup(amw_arena_t *a, void *data, size_t size_bytes);
+AMW_API char * AMW_CALL amw_arena_sprintf(amw_arena_t *a, const char *fmt, ...) AMW_PRINTF_FORMAT(2);
+
+AMW_API void   AMW_CALL amw_arena_reset(amw_arena_t *a);
+AMW_API void   AMW_CALL amw_arena_free(amw_arena_t *a);
+
+// DYNAMIC ARRAY (a-arena da-array item-to_append)
+#define AMW_ARENA_DA_INIT_CAP       256
+#define amw_arena_da_append(a, da, item)                                                          \
+    do {                                                                                          \
+        if ((da)->count >= (da)->capacity) {                                                      \
+            size_t new_capacity = (da)->capacity == 0 ? AMW_ARENA_DA_INIT_CAP : (da)->capacity*2; \
+            (da)->items = amw_cast_ptr((da)->items)amw_arena_realloc(                             \
+                (a), (da)->items,                                                                 \
+                (da)->capacity * sizeof(*(da)->items),                                            \
+                new_capacity * sizeof(*(da)->items));                                             \
+            (da)->capacity = new_capacity;                                                        \
+        }                                                                                         \
+        (da)->items[(da)->count++] = (item);                                                      \
+    } while (0)
+
+AMW_API bool AMW_CALL amw_spinlock_try_acquire(int32_t *lock);
+AMW_API void AMW_CALL amw_spinlock_acquire(int32_t *lock);
+AMW_API void AMW_CALL amw_spinlock_release(int32_t *lock);
 
 /**
  * A compiler barrier prevents the compiler from reordering reads and writes
@@ -766,10 +934,12 @@ AMW_INLINE float amw_swap_float(float x)
     extern __inline void mw_compiler_barrier(void);
     #pragma aux amw_compiler_barrier = "" parm [] modify exact [];
 #else
-    /* TODO implement spinlocks
-    #define amw_compiler_barrier() \
-        { amw_spinlock_t _tmp = 0; amw_spinlock_lock(&_tmp); amw_spinlock_unlock(&_tmp); }
-    */
+    #define amw_compiler_barrier()          \
+    {                                       \
+        int32_t lock_temp = 0;              \
+        amw_spinlock_acquire(&lock_temp);   \
+        amw_spinlock_release(&lock_temp);   \
+    }
 #endif
 
 /**
@@ -859,131 +1029,14 @@ AMW_INLINE float amw_swap_float(float x)
     #define amw_cpu_pause_instruction()
 #endif
 
-#define amw_arraysize(array) (sizeof(array)/sizeof(array[0]))
-#define amw_clamp(x, a, b) (((x) < (a)) ? (a) : (((x) > (b)) ? (b) : (x)))
-#define amw_min(x, y) (((x) < (y)) ? (x) : (y))
-#define amw_max(x, y) (((x) > (y)) ? (x) : (y))
-#define amw_swap(type, a, b)   \
-    {                           \
-        type temp = a;          \
-        a = b;                  \
-        b = temp;               \
-    }
-
-#define amw_malloc  malloc
-#define amw_calloc  calloc
-#define amw_realloc realloc
-#define amw_free    free
-
-#define amw_memset  memset
-#define amw_memcpy  memcpy
-#define amw_memmove memmove
-#define amw_memcmp  memcmp
-
-#define amw_zero(x)  amw_memset(&(x), 0, sizeof((x)))
-#define amw_zerop(x) amw_memset((x), 0, sizeof(*(x)))
-#define amw_zeroa(x) amw_memset((x), 0, sizeof((x)))
-
-#define AMW_FALSE 0
-#define AMW_TRUE 1
-#ifndef __cplusplus
-    typedef _Bool bool;
-#endif
-
-typedef int32_t                 ivec2_t[2];
-typedef int32_t                 ivec3_t[3];
-typedef int32_t                 ivec4_t[4];
-
-typedef float                   vec2_t[2];
-typedef float                   vec3_t[3];
-typedef AMW_ALIGN_IF(16) float  vec4_t[4];
-
-/* quaternion of tensor 1 */
-typedef vec4_t                  versor_t;     /* |x, y, z, w| -> w is the last */
-
-typedef AMW_ALIGN_IF(16) vec2_t mat2_t[2];
-typedef vec3_t                  mat2x3_t[2];  /* [col (2), row (3)] */
-typedef vec4_t                  mat2x4_t[2];  /* [col (2), row (4)] */
-
-typedef vec3_t                  mat3_t[3];
-typedef vec2_t                  mat3x2_t[3];  /* [col (3), row (2)] */
-typedef vec4_t                  mat3x4_t[3];  /* [col (3), row (4)] */
-
-typedef AMW_ALIGN_MAT vec4_t    mat4_t[4];
-typedef vec2_t                  mat4x2_t[4];  /* [col (4), row (2)] */
-typedef vec3_t                  mat4x3_t[4];  /* [col (4), row (3)] */
-
-#define AMW_E         2.71828182845904523536028747135266250   /* e           */
-#define AMW_LOG2E     1.44269504088896340735992468100189214   /* log2(e)     */
-#define AMW_LOG10E    0.434294481903251827651128918916605082  /* log10(e)    */
-#define AMW_LN2       0.693147180559945309417232121458176568  /* loge(2)     */
-#define AMW_LN10      2.30258509299404568401799145468436421   /* loge(10)    */
-#define AMW_PI        3.14159265358979323846264338327950288   /* pi          */
-#define AMW_PI_2      1.57079632679489661923132169163975144   /* pi/2        */
-#define AMW_PI_4      0.785398163397448309615660845819875721  /* pi/4        */
-#define AMW_1_PI      0.318309886183790671537767526745028724  /* 1/pi        */
-#define AMW_2_PI      0.636619772367581343075535053490057448  /* 2/pi        */
-#define AMW_2_SQRTPI  1.12837916709551257389615890312154517   /* 2/sqrt(pi)  */
-#define AMW_SQRT2     1.41421356237309504880168872420969808   /* sqrt(2)     */
-#define AMW_SQRT1_2   0.707106781186547524400844362104849039  /* 1/sqrt(2)   */
-
-#define AMW_Ef        ((float)AMW_E)
-#define AMW_LOG2Ef    ((float)AMW_LOG2E)
-#define AMW_LOG10Ef   ((float)AMW_LOG10E)
-#define AMW_LN2f      ((float)AMW_LN2)
-#define AMW_LN10f     ((float)AMW_LN10)
-#define AMW_PIf       ((float)AMW_PI)
-#define AMW_PI_2f     ((float)AMW_PI_2)
-#define AMW_PI_4f     ((float)AMW_PI_4)
-#define AMW_1_PIf     ((float)AMW_1_PI)
-#define AMW_2_PIf     ((float)AMW_2_PI)
-#define AMW_2_SQRTPIf ((float)AMW_2_SQRTPI)
-#define AMW_SQRT2f    ((float)AMW_SQRT2)
-#define AMW_SQRT1_2f  ((float)AMW_SQRT1_2)
-
-typedef struct amw_slice amw_slice_t;
-struct amw_slice {
-    amw_slice_t *next;
-    size_t       count;
-    size_t       capacity;
-    uintptr_t    data[];
-};
-
-typedef struct amw_arena {
-    amw_slice_t *begin;
-    amw_slice_t *end;
-} amw_arena_t;
-
-#define AMW_SLICE_DEFAULT_CAPACITY (8*1024)
-#define AMW_ARENA_DA_INIT_CAP       256
-
-amw_slice_t *amw_slice_new(size_t capacity);
-void         amw_slice_free(amw_slice_t *slice);
-
-void    *amw_arena_alloc(amw_arena_t *a, size_t size_bytes);
-void    *amw_arena_realloc(amw_arena_t *a, void *oldptr, size_t old_size, size_t new_size);
-char    *amw_arena_strdup(amw_arena_t *a, const char *str);
-void    *amw_arena_memdup(amw_arena_t *a, void *data, size_t size_bytes);
-char    *amw_arena_sprintf(amw_arena_t *a, const char *fmt, ...) AMW_PRINTF_FORMAT(2);
-
-void     amw_arena_reset(amw_arena_t *a);
-void     amw_arena_free(amw_arena_t *a);
-
-#define arena_da_append(a, da, item)                                                              \
-    do {                                                                                          \
-        if ((da)->count >= (da)->capacity) {                                                      \
-            size_t new_capacity = (da)->capacity == 0 ? AMW_ARENA_DA_INIT_CAP : (da)->capacity*2; \
-            (da)->items = amw_cast_ptr((da)->items)amw_arena_realloc(                             \
-                (a), (da)->items,                                                                 \
-                (da)->capacity*sizeof(*(da)->items),                                              \
-                new_capacity*sizeof(*(da)->items));                                               \
-            (da)->capacity = new_capacity;                                                        \
-        }                                                                                         \
-        (da)->items[(da)->count++] = (item);                                                      \
-    } while (0)
-
-#ifndef AMW_LOG_USE_COLOR
-    #define AMW_LOG_USE_COLOR 1
+#ifndef AMW_LOG_DISABLE_COLOR
+    #ifndef AMW_LOG_USE_COLOR
+        #define AMW_LOG_USE_COLOR 1
+    #endif
+#else 
+    #ifndef AMW_LOG_USE_COLOR
+        #define AMW_LOG_USE_COLOR 0
+    #endif
 #endif
 
 #ifndef AMW_LOG_DISABLE_FUNCTION
@@ -1033,18 +1086,17 @@ typedef enum amw_log_level {
     AMW_LOG_FATAL,
 } amw_log_level_t;
 
-void    amw_log_init(void *output);
-void    amw_log_terminate(void);
+AMW_API void    AMW_CALL amw_log_init(void *output);
+AMW_API void    AMW_CALL amw_log_terminate(void);
 
-void    amw_log_message(int32_t level, const char *function, const char *file, int32_t line, const char *fmt, ...) AMW_PRINTF_FORMAT(5);
-void    amw_log_raw(char *fmt, ...) AMW_PRINTF_FORMAT(1);
+AMW_API void    AMW_CALL amw_log_raw(char *fmt, ...) AMW_PRINTF_FORMAT(1);
+AMW_API void    AMW_CALL amw_log_message(int32_t level, const char *function, const char *file, int32_t line, const char *fmt, ...) AMW_PRINTF_FORMAT(5);
 
-int32_t amw_log_level(void);
-void    amw_log_set_level(int32_t level);
-void    amw_log_set_quiet(bool silence);
+AMW_API int32_t AMW_CALL amw_log_level(void);
+AMW_API void    AMW_CALL amw_log_set_level(int32_t level);
+AMW_API void    AMW_CALL amw_log_set_quiet(bool silence);
 
 #ifndef AMW_LOG_DISABLE_OUTPUT
-#define amw_log_raw(...)     amw_log_raw(__VA_ARGS__)
 #define amw_log_verbose(...) amw_log_message(AMW_LOG_VERBOSE, __AMW_FUNCTION__, __AMW_FILE__, __AMW_LINE__, __VA_ARGS__)
 #define amw_log_debug(...)   amw_log_message(AMW_LOG_DEBUG,   __AMW_FUNCTION__, __AMW_FILE__, __AMW_LINE__, __VA_ARGS__)
 #define amw_log_info(...)    amw_log_message(AMW_LOG_INFO,    __AMW_FUNCTION__, __AMW_FILE__, __AMW_LINE__, __VA_ARGS__)
@@ -1052,7 +1104,7 @@ void    amw_log_set_quiet(bool silence);
 #define amw_log_error(...)   amw_log_message(AMW_LOG_ERROR,   __AMW_FUNCTION__, __AMW_FILE__, __AMW_LINE__, __VA_ARGS__)
 #define amw_log_fatal(...)   amw_log_message(AMW_LOG_FATAL,   __AMW_FUNCTION__, __AMW_FILE__, __AMW_LINE__, __VA_ARGS__)
 #else
-#define amw_log_raw(...) 
+#define amw_log_raw(...)
 #define amw_log_verbose(...) 
 #define amw_log_debug(...) 
 #define amw_log_info(...)  
@@ -1061,17 +1113,200 @@ void    amw_log_set_quiet(bool silence);
 #define amw_log_fatal(...) 
 #endif
 
-#ifdef __cplusplus
-    #define amw_cast_ptr(ptr) (decltype(ptr))
-#else
-    #define amw_cast_ptr(...)
+#ifndef __has_feature
+    #define __has_feature(x) 0
 #endif
+#if __has_feature(address_sanitizer)
+    #define __SANITIZE_ADDRESS__ 1
+#endif
+
+#if __has_feature(memory_sanitizer)
+    #include <sanitizer/msan_interface.h>
+    #ifndef AMW_HAVE_VALGRIND
+        #define AMW_HAVE_VALGRIND
+    #endif
+    #define AMW_MEM_UNDEFINED(a,len) __msan_allocated_memory(a,len)
+    #define AMW_MEM_MAKE_ADDRESSABLE(a,len) MEM_UNDEFINED(a,len)
+    #define AMW_MEM_MAKE_DEFINED(a,len) __msan_unpoison(a,len)
+    #define AMW_MEM_NOACCESS(a,len) ((void) 0)
+    #define AMW_MEM_CHECK_ADDRESSABLE(a,len) ((void) 0)
+    #define AMW_MEM_CHECK_DEFINED(a,len) __msan_check_mem_is_initialized(a,len)
+    #define AMW_MEM_GET_VBITS(a,b,len) __msan_copy_shadow(b,a,len)
+    #define AMW_MEM_SET_VBITS(a,b,len) __msan_copy_shadow(a,b,len)
+    #define AMW_REDZONE_SIZE 8
+#elif defined(AMW_HAVE_VALGRIND)
+    #include <valgrind/memcheck.h>
+    #define AMW_MEM_UNDEFINED(a,len) VALGRIND_MAKE_MEM_UNDEFINED(a,len)
+    #define AMW_MEM_MAKE_ADDRESSABLE(a,len) MEM_UNDEFINED(a,len)
+    #define AMW_MEM_MAKE_DEFINED(a,len) VALGRIND_MAKE_MEM_DEFINED(a,len)
+    #define AMW_MEM_NOACCESS(a,len) VALGRIND_MAKE_MEM_NOACCESS(a,len)
+    #define AMW_MEM_CHECK_ADDRESSABLE(a,len) VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a,len)
+    #define AMW_MEM_CHECK_DEFINED(a,len) VALGRIND_CHECK_MEM_IS_DEFINED(a,len)
+    #define AMW_MEM_GET_VBITS(a,b,len) VALGRIND_GET_VBITS(a,b,len)
+    #define AMW_MEM_SET_VBITS(a,b,len) VALGRIND_SET_VBITS(a,b,len)
+    #define AMW_REDZONE_SIZE 8
+#elif defined(__SANITIZE_ADDRESS__)
+    #include <sanitizer/asan_interface.h>
+    /* How to do manual poisoning:
+     * https://github.com/google/sanitizers/wiki/AddressSanitizerManualPoisoning */
+    #define AMW_MEM_UNDEFINED(a,len) ((void) 0)
+    #define AMW_MEM_MAKE_ADDRESSABLE(a,len) ASAN_UNPOISON_MEMORY_REGION(a,len)
+    #define AMW_MEM_MAKE_DEFINED(a,len) ((void) 0)
+    #define AMW_MEM_NOACCESS(a,len) ASAN_POISON_MEMORY_REGION(a,len)
+    #define AMW_MEM_CHECK_ADDRESSABLE(a,len) \
+        amw_assert_always(!__asan_region_is_poisoned((void*) a,len))
+    #define AMW_MEM_CHECK_DEFINED(a,len) ((void) 0)
+    #define AMW_MEM_GET_VBITS(a,b,len) ((void) 0)
+    #define AMW_MEM_SET_VBITS(a,b,len) ((void) 0)
+    #define AMW_REDZONE_SIZE 8
+#else
+    #define AMW_MEM_UNDEFINED(a,len) ((void) 0)
+    #define AMW_MEM_MAKE_ADDRESSABLE(a,len) ((void) 0)
+    #define AMW_MEM_MAKE_DEFINED(a,len) ((void) 0)
+    #define AMW_MEM_NOACCESS(a,len) ((void) 0)
+    #define AMW_MEM_CHECK_ADDRESSABLE(a,len) ((void) 0)
+    #define AMW_MEM_CHECK_DEFINED(a,len) ((void) 0)
+    #define AMW_MEM_GET_VBITS(a,b,len) ((void) 0)
+    #define AMW_MEM_SET_VBITS(a,b,len) ((void) 0)
+    #define AMW_REDZONE_SIZE 0
+#endif /* valgrind */
+
+#ifdef AMW_HAVE_VALGRIND
+    #define AMW_IF_VALGRIND(A,B) A
+#else
+    #define AMW_IF_VALGRIND(A,B) B
+#endif
+
+#ifdef AMW_TRASH_FREED_MEMORY
+   /* _AMW_TRASH_FILL() has to call AMW_MEM_MAKE_ADDRESSABLE() to cancel any effect of
+    * AMW_TRASH_FREE().
+    * This can happen in the case one does
+    * AMW_TRASH_ALLOC(A,B) ; AMW_TRASH_FREE(A,B) ; AMW_TRASH_ALLOC(A,B)
+    * to reuse the same memory in an internal memory allocator like MEM_ROOT.
+    * _AMW_TRASH_FILL() is an internal function and should not be used externally. */
+    #define _AMW_TRASH_FILL(A,B,C) \
+        do { const size_t trash_tmp= (B); AMW_MEM_MAKE_ADDRESSABLE(A, trash_tmp); amw_memset(A, C, trash_tmp); } while (0)
+#else
+    #define _AMW_TRASH_FILL(A,B,C) \
+        do { AMW_MEM_UNDEFINED((A), (B)); } while (0)
+#endif
+/** Note that some memory became allocated and/or uninitialized. */
+#define AMW_TRASH_ALLOC(A,B) do { _AMW_TRASH_FILL(A,B,0xA5); AMW_MEM_MAKE_ADDRESSABLE(A,B); } while(0)
+/** Note that some memory became freed. (Prohibit further access to it.) */
+#define AMW_TRASH_FREE(A,B) do { _AMW_TRASH_FILL(A,B,0x8F); AMW_MEM_NOACCESS(A,B); } while(0)
 
 typedef enum {
     AMW_SUCCESS = 0,
-    AMW_ERROR = -1,
+    AMW_ERROR_UNKNOWN = -1,
+    AMW_ERROR_FEATURE_NOT_SUPPORTED = -100,
+    AMW_ERROR_PLATFORM_NOT_SUPPORTED = -101,
+    AMW_ERROR_THREAD_FAILED = -200,
+    AMW_ERROR_MUTEX_FAILED = -201,
     /* TODO */
 } amw_result_t;
+
+#ifdef A_MOONLIT_WALK_MAIN
+#undef A_MOONLIT_WALK_MAIN
+
+#ifdef AMW_PLATFORM_WINDOWS
+#include <windows.h>
+#include <wchar.h>
+
+static char **command_line_to_utf8_argv(LPWSTR w_command_line, int32_t *o_argc)
+{
+    int32_t argc = 0;
+    char **argv = 0;
+    char  *args;
+
+    LPWSTR *w_argv = CommandLineToArgvW(w_command_line, &argc);
+    if (w_argv == NULL) {
+        amw_log_error("Win32 couldn't fetch command line arguments");
+    } else {
+        size_t size = wcslen(w_command_line) * 4;
+        void *ptr_argv = amw_malloc(((size_t)argc + 1) * sizeof(char *) + size);
+        amw_zerop(ptr_argv);
+        argv = (char **)ptr_argv;
+        amw_assert_release(argv);
+        args = (char *)&argv[argc + 1];
+
+        int32_t n;
+        for (int32_t i = 0; i < argc; ++i) {
+            n = WideCharToMultiByte(CP_UTF8, 0, w_argv[i], -1, args, (int32_t)size, NULL, NULL);
+            if (n == 0) {
+                amw_log_error("Win32 got a 0 length argument");
+                break;
+            }
+            argv[i] = args;
+            size -= (size_t)n;
+            args += n;
+        }
+        LocalFree(w_argv);
+    }
+    *o_argc = argc;
+    return argv;
+}
+
+#ifdef AMW_PLATFORM_WINDOWS_FORCE_MAIN
+int32_t main(int32_t argc, char **argv)
+{
+    int32_t res = AMW_SUCCESS;
+
+    parse_arguments(argc, argv);
+    res = a_moonlit_walk();
+    amw_exit(res);
+}
+#else
+int32_t WINAPI WinMain(_In_ HINSTANCE hInstance, 
+                       _In_opt_ HINSTANCE hPrevInstance, 
+                       _In_ LPSTR lpCmdLine, 
+                       _In_ int32_t nCmdShow)
+{
+    /* TODO */
+    (void)hInstance;
+    (void)hPrevInstance;
+    (void)lpCmdLine;
+    (void)nCmdShow;
+
+    int32_t res = AMW_SUCCESS;
+    int32_t argc_utf8 = 0;
+    char **argv_utf8 = command_line_to_utf8_argv(GetCommandLineW(), &argc_utf8);
+
+    parse_arguments(argc, argv);
+    res = a_moonlit_walk();
+
+    amw_free(argv_utf8);
+    amw_exit(res);
+}
+#endif /* AMW_PLATFORM_WINDOWS_FORCE_MAIN */
+
+#elif AMW_PLATFORM_MACOSX
+    /* TODO */
+#elif AMW_PLATFORM_IOS
+    /* TODO */
+
+#elif AMW_PLATFORM_ANDROID
+#include <android/log.h>
+#include <android_native_app_glue.h>
+#include <jni.h>
+
+JNIEXPORT void ANativeActivity_onCreate(ANativeActivity* activity, 
+                                        void* saved_state, 
+                                        size_t saved_state_size) 
+{
+    /* TODO */
+}
+
+#else
+int32_t main(int32_t argc, char **argv)
+{
+    int32_t res = AMW_SUCCESS;
+
+    parse_arguments(argc, argv);
+    res = a_moonlit_walk();
+    amw_exit(res);
+}
+#endif /* main entry points */
+#endif /* A_MOONLIT_WALK_MAIN */
 
 #ifdef __cplusplus
 }

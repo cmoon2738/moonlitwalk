@@ -74,7 +74,7 @@ static void output_handle_done(void *data, struct wl_output *wl_output)
     for (int32_t i = 0; i < hadal.output_count; i++) {
         if (hadal.outputs[i] == output) return;
     }
-    hadal_input_output(output, HADAL_CONNECTED, HADAL_INSERT_LAST);
+    hadal_create_output(output, HADAL_CONNECTED, HADAL_INSERT_LAST);
 }
 
 static void output_handle_scale(void *data, struct wl_output *wl_output, int32_t factor)
