@@ -1,16 +1,21 @@
 #ifndef _amw_sewing_h_
 #define _amw_sewing_h_
 
-#include "amw.h"
-#include "system.h"
+#include <moonlitwalk/defines.h>
+#include <moonlitwalk/os.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+AMW_C_DECL_BEGIN
 
+/** Opaque handle for the fiber job system */
 typedef struct amw_sewing amw_sewing_t;
 
+/** 
+ * The sew chain is bind to a job (or an array of jobs) and will block 
+ * any wait calls to the sewing system, until the binded jobs of a chain 
+ * are all finished. So it's used as a synchronization primitive.
+ */
 typedef void *amw_sew_chain_t;
+
 typedef void *amw_procedure_argument_t;
 typedef void (AMW_CALL *PFN_amw_procedure)(amw_procedure_argument_t);
 
@@ -19,6 +24,7 @@ typedef void (AMW_CALL *PFN_amw_main_procedure)(amw_sewing_t *sewing,
                                                 size_t thread_count,
                                                 amw_procedure_argument_t argument);
 
+/** A job run by a fiber context */
 typedef struct amw_stitch {
     PFN_amw_procedure         procedure;
     amw_procedure_argument_t  argument;
@@ -100,8 +106,6 @@ AMW_API size_t AMW_CALL amw_sew_it(void *sewing_memory,
                                    PFN_amw_main_procedure main_procedure,
                                    amw_procedure_argument_t main_procedure_argument);
 
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
+AMW_C_DECL_END
 
 #endif /* _amw_sewing_h_ */

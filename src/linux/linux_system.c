@@ -1,4 +1,4 @@
-#include <moonlitwalk/system.h>
+#include <moonlitwalk/os.h>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -22,23 +22,22 @@ void amw_exitcode(int32_t exitcode)
 
 void amw_sleep(int32_t ms)
 {
-    amw_assert_always(usleep(ms * 1000) != -1);
+    usleep(ms * 1000);
 }
 
 void amw_cpu_count(int32_t *threads, int32_t *cores, int32_t *packages)
 {
     static bool count_cpu_init = AMW_FALSE;
-
-    int32_t fd, len, pos, end;
-    char    buf[4096];
-    char    num[100];
-
     if (count_cpu_init) {
         if (threads)  *threads = cpu_threads;
         if (cores)    *cores = cpu_cores;
         if (packages) *packages = cpu_packages;
         return;
     }
+
+    int32_t fd, len, pos, end;
+    char    buf[4096];
+    char    num[100];
 
     cpu_threads = 1;
     cpu_cores = 1;
@@ -90,7 +89,7 @@ void amw_cpu_count(int32_t *threads, int32_t *cores, int32_t *packages)
             pos = strchr(buf + pos, '\n') - buf + 1;
         }
     } else {
-        amw_log_warn("failed parsing /proc/cpuinfo, worse method used to determine cpu count");
+        amw_log_error("failed parsing /proc/cpuinfo");
         cpu_cores = sysconf(_SC_NPROCESSORS_CONF);
         cpu_threads = 2 * cpu_cores;
     }

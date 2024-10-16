@@ -1,4 +1,4 @@
-#include <moonlitwalk/system.h>
+#include <moonlitwalk/os.h>
 
 #include <errno.h>
 #include <pthread.h>

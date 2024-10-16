@@ -52,7 +52,10 @@ enabled_display_backends = []
 
 audio_deps = []
 enabled_audio_backends = []
+enabled_rendering_backends = []
 
+subdir('docs')
+subdir('external')
 subdir('shaders')
 subdir('src')
 
@@ -72,7 +75,7 @@ summary({
 summary({
     'Display backends' : '@0@'.format(', '.join(enabled_display_backends)),
     'Audio backends' : '@0@'.format(', '.join(enabled_audio_backends)),
-    'Rendering backends' : 'Vulkan',
+    'Rendering backends' : '@0@'.format(', '.join(enabled_rendering_backends)),
 }, bool_yn : true, section : 'Features')
 
 #summary({

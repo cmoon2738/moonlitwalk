@@ -1,24 +1,4 @@
-#include "../core/hadal.h"
-#include "fractional-scale-v1-protocol.h"
-#include "idle-inhibit-unstable-v1-protocol.h"
-#include "moonlitwalk/amw.h"
-#include "moonlitwalk/hadopelagic.h"
-#include "pointer-constraints-unstable-v1-protocol.h"
-#include "viewporter-protocol.h"
-#include "wayland.h"
-#include "xdg-activation-v1-protocol.h"
-
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <linux/input-event-codes.h>
-#include <sys/mman.h>
-#include <sys/timerfd.h>
-#include <poll.h>
-#include <wayland-client-core.h>
-#include <wayland-util.h>
-#include <xkbcommon/xkbcommon-compose.h>
-#include <xkbcommon/xkbcommon.h>
+#include "../hadopelagic.h"
 
 static void set_content_area_opaque(amw_window_t *window)
 {

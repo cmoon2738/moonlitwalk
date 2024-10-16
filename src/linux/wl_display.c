@@ -1,10 +1,4 @@
-#include "../core/hadal.h"
-#include "wayland.h"
-
-#include <linux/input-event-codes.h>
-#include <linux/input.h>
-#include <sys/timerfd.h>
-#include <unistd.h>
+#include "../hadopelagic.h"
 
 static void wm_base_handle_ping(void *data,
                                 struct xdg_wm_base *shell,

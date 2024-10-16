@@ -1,6 +1,4 @@
-#include "../core/hadal.h"
-
-#include <unistd.h>
+#include "../hadopelagic.h"
 
 static void output_handle_geometry(void *data,
                                    struct wl_output *wl_output,
@@ -71,8 +69,8 @@ static void output_handle_done(void *data, struct wl_output *wl_output)
         output->height_mm = (int32_t)(mode->height * 25.4f / 96.f);
     }
 
-    for (int32_t i = 0; i < hadal.output_count; i++) {
-        if (hadal.outputs[i] == output) return;
+    for (int32_t i = 0; i < output->hadal->output_count; i++) {
+        if (output->hadal->outputs[i] == output) return;
     }
     hadal_create_output(output, HADAL_CONNECTED, HADAL_INSERT_LAST);
 }
@@ -86,15 +84,14 @@ static void output_handle_scale(void *data, struct wl_output *wl_output, int32_t
 
     output->wl.scale = factor;
 
-    for (amw_window_t *window = hadal.window_list; window; window = window->next) {
-        for (size_t i = 0; i < window->wl.output_scale_count; i++) {
-            if (window->wl.output_scales[i].output == output->wl.output) {
-                window->wl.output_scales[i].factor = output->wl.scale;
-                hadal_wayland_update_buffer_scale_from_outputs(window);
-                break;
-            }
-        }
-    }
+   amw_window_t *window = output->hadal->window;
+   for (size_t i = 0; i < window->wl.output_scale_count; i++) {
+       if (window->wl.output_scales[i].output == output->wl.output) {
+           window->wl.output_scales[i].factor = output->wl.scale;
+           hadal_wayland_update_buffer_scale_from_outputs(window);
+           break;
+       }
+   }
 }
 
 static void output_handle_name(void *data, struct wl_output *wl_output, const char *name)
@@ -123,7 +120,7 @@ static const struct wl_output_listener output_listener = {
     .description = output_handle_description,
 };
 
-void hadal_wayland_add_output(uint32_t name, uint32_t version)
+void hadal_wayland_add_output(amw_hadal_t *hadal, uint32_t name, uint32_t version)
 {
     if (version < 2) {
         amw_log_error("Unsupported Wayland output interface version, name: %d, version: %d", name, version);
@@ -131,21 +128,21 @@ void hadal_wayland_add_output(uint32_t name, uint32_t version)
     }
     version = amw_min(version, WL_OUTPUT_NAME_SINCE_VERSION);
 
-    struct wl_output *wl_output = wl_registry_bind(hadal.wl.registry, name, &wl_output_interface, version);
+    struct wl_output *wl_output = wl_registry_bind(hadal->wl.registry, name, &wl_output_interface, version);
     if (!wl_output) {
         amw_log_debug("No Wayland output was added, name: %d, version: %d", name, version);
         return;
     }
 
     /* the actual output name will be set in the geometry handler */
-    amw_output_t *output = hadal_alloc_output("", 0, 0);
+    amw_output_t *output = hadal_alloc_output(hadal, "", 0, 0);
     output->wl.scale = 1;
     output->wl.output = wl_output;
     output->wl.name = name;
 
-    wl_proxy_set_tag((struct wl_proxy *)wl_output, &hadal.wl.tag);
+    wl_proxy_set_tag((struct wl_proxy *)wl_output, &hadal->wl.tag);
     wl_output_add_listener(wl_output, &output_listener, output);
-    amw_log_verbose("Added a Wayland output");
+    amw_log_verbose("Added a Wayland output monitor");
 }
 
 void hadal_wayland_free_output(amw_output_t *output)

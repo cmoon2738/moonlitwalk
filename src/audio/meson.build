@@ -11,14 +11,8 @@ if dep_core.found()
 endif
 
 # Steinberg ASIO
-build_asiosdk = cc.check_header('windows.h', required : get_option('asio')) and fs.is_dir('backends/asiosdk/common')
 if build_asiosdk
-    # The ASIO SDK sources are pulled from:
-    # https://www.steinberg.net/asiosdk
     sources += files([
-        'backends/asiosdk/common/asio.cpp',
-        'backends/asiosdk/common/asiolist.cpp',
-        'backends/asiosdk/common/asiodrivers.cpp',
         'backends/iasiothiscallresolver.cpp',
         'backends/asio.cpp' ])
     defs += '-DAMW_NATIVE_ASIO'
@@ -48,6 +42,18 @@ if dep_xaudio.found()
     enabled_audio_backends += [ 'xaudio2' ]
 endif
 
+# DirectSound
+dep_dsound = cc.find_library('dsound', required : get_option('dsound'))
+if dep_dsound.found()
+    #sources += files('backends/dsound.c')
+
+    defs += '-DAMW_NATIVE_DSOUND'
+    audio_deps += cc.find_library('avrt')
+    audio_deps += cc.find_library('msacm32')
+    audio_deps += dep_dsound
+    enabled_audio_backends += [ 'dsound' ]
+endif
+
 # AAudio
 dep_aaudio = cc.find_library('aaudio', required : get_option('aaudio'))
 if dep_aaudio.found()
@@ -56,6 +62,26 @@ if dep_aaudio.found()
     defs += '-DAMW_NATIVE_AAUDIO'
     audio_deps += dep_aaudio
     enabled_audio_backends += [ 'aaudio' ]
+endif
+
+# OpenSL|ES
+dep_opensles = cc.find_library('OpenSLES', required : get_option('opensles'))
+if dep_opensles.found()
+    #sources += files('backends/opensles.c')
+
+    defs += '-DAMW_NATIVE_OPENSLES'
+    audio_deps += dep_opensles
+    enabled_audio_backends += [ 'opensles' ]
+endif
+
+# WebAudio
+found_webaudio = not get_option('webaudio').disabled() and (sys == 'emscripten')
+if found_webaudio
+    #sources += files('backends/webaudio.c') 
+ 
+    defs += '-DAMW_NATIVE_WEBAUDIO'
+    #link_args += 'lwebaudio.js'
+    enabled_audio_backends += [ 'webaudio' ]
 endif
 
 # ALSA

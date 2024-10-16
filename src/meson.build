@@ -1,11 +1,10 @@
 sources += files(
-    'lake.c',
-    'main.c',
-    'core/arena.c',
-    'core/hadal.c',
-    'core/log.c',
-    'core/sewing.c',
-    'core/spinlock.c',
+    'a_moonlit_walk.c',
+    'arena.c',
+    'hadal.c',
+    'log.c',
+    'sewing.c',
+    'spinlock.c',
 )
 
 # Unix
@@ -81,6 +80,14 @@ elif sys == 'android'
     platform += [ dep_threads, dep_math, dep_rt, dep_dl, dep_android, dep_log, dep_android_native_glue ]
     enabled_display_backends += [ 'android' ]
 
+# Emscripten
+elif sys == 'emscripten'
+    #sources += files('')
+
+    defs += '-DAMW_PLATFORM_EMSCRIPTEN'
+    #link_args += [ '-s', 'WASM=1', 'lhtml5', ]
+    enabled_display_backends += [ 'emscripten' ]
+
 # Linux
 elif sys == 'linux' or sys == 'bsd'
     sources += files(
@@ -98,7 +105,6 @@ elif sys == 'linux' or sys == 'bsd'
         sources += files(
             'linux/wl_display.c',
             'linux/wl_output.c',
-            'linux/wl_surface.c',
             'linux/wl_window.c',
         )
 
@@ -119,10 +125,10 @@ elif sys == 'linux' or sys == 'bsd'
             'fractional-scale'    : '-v1',
             'relative-pointer'    : '-unstable-v1',
             'pointer-constraints' : '-unstable-v1',
-            #'pointer-gestures'    : '-unstable-v1',
+            'pointer-gestures'    : '-unstable-v1',
             'idle-inhibit'        : '-unstable-v1',
             'viewporter'          : '',
-            #'tablet'              : '-v2'
+            'tablet'              : '-v2'
         }
 
         foreach name, version : wayland_protocols

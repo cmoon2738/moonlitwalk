@@ -1,0 +1,8 @@
+assets/* linguist-vendored
+build/* linguist-vendored
+docs/* linguist-vendored
+cross/* linguist-vendored
+external/* linguist-vendored
+
+src/audio/backends/iasiothiscallresolver.cpp linguist-vendored
+src/audio/backends/iasiothiscallresolver.h linguist-vendored
