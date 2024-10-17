@@ -85,7 +85,7 @@ elif sys == 'emscripten'
     #sources += files('')
 
     defs += '-DAMW_PLATFORM_EMSCRIPTEN'
-    #link_args += [ '-s', 'WASM=1', 'lhtml5', ]
+    common_c_link_args += [ '-s', 'WASM=1', 'lhtml5', ]
     enabled_display_backends += [ 'emscripten' ]
 
 # Linux

@@ -1,10 +1,12 @@
 #sources += files('')
+spirv_shader_translation = false
 
 if (sys == 'emscripten' and not get_option('webgpu').disabled()) 
     #sources += files('')
-    #link_args += 'lwebgpu.js'
+    #
+    common_c_link_args += [ 'lwebgpu.js' ]
     defs += [ '-DAMW_NATIVE_WEBGPU' ]
-    enabled_rendering_backends = 'webgpu'
+    enabled_rendering_backends += 'webgpu'
 
 else
     # Vulkan is loaded at runtime
@@ -19,7 +21,8 @@ else
             'vulkan/vk_validation.c',
         )
         defs += [ '-DAMW_NATIVE_VULKAN' ]
-        enabled_rendering_backends = 'vulkan'
+        enabled_rendering_backends += 'vulkan'
+        spirv_shader_translation = true
     endif
 endif
 

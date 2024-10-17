@@ -16,9 +16,8 @@ sources = []
 assembly = []
 shaders = []
 
-defs = [
-    '-DAMW_LOG_DISABLE_FUNCTION',
-]
+defs = []
+
 common_c_args = [
     '-Wall',
     '-Wno-pedantic',
@@ -26,9 +25,10 @@ common_c_args = [
     '-Werror=incompatible-pointer-types',
     '-Werror=return-type',
 ]
+common_c_link_args = []
 
 if get_option('buildtype') == 'debug' or get_option('buildtype') == 'debugoptimized'
-    defs += '-DAMW_DEBUG'
+    defs += [ '-DAMW_DEBUG', '-DAMW_LOG_DISABLE_FUNCTION' ]
 endif
 
 dep_threads = dependency('threads')
@@ -54,17 +54,20 @@ audio_deps = []
 enabled_audio_backends = []
 enabled_rendering_backends = []
 
-subdir('docs')
 subdir('external')
-subdir('shaders')
 subdir('src')
+subdir('shaders')
 
-moonlitwalk = executable('moonlitwalk',
+moonlitwalk = library('moonlitwalk',
     [ sources, shaders, assembly ],
     c_args : [ defs, common_c_args ],
+    c_link_args : [ common_c_link_args ],
     dependencies : [ platform, audio_deps ],
     include_directories : 'include',
     install : false)
+
+subdir('prototypes')
+subdir('docs')
 
 summary({
     'System type' : systype,
@@ -76,6 +79,8 @@ summary({
     'Display backends' : '@0@'.format(', '.join(enabled_display_backends)),
     'Audio backends' : '@0@'.format(', '.join(enabled_audio_backends)),
     'Rendering backends' : '@0@'.format(', '.join(enabled_rendering_backends)),
+    'SPIR-V translation ' : spirv_shader_translation,
+    'Valgrind memcheck' : cc.has_header('valgrind/memcheck.h'),
 }, bool_yn : true, section : 'Features')
 
 #summary({

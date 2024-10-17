@@ -4,14 +4,15 @@
 # ============|======================|===========================================================
 # arm         | AAPCS | ELF          | AAPCS | PE         | AAPCS / MACH-0    | 
 # arm64       | AAPCS | ELF          | --                 | AAPCS / MACH-0    | 
-# i386        | SYSV | ELF           | MS | PE            | SYSV / MACH-0     | 
-# loongarch64 | SYSV | ELF           |                    |                   |
+# i386/x86    | SYSV | ELF           | MS | PE            | SYSV / MACH-0     | 
+# loongarch64 | SYSV | ELF           | __                 | --                |
 # mips32      | O32 | ELF            | --                 | --                |
 # mips64      | N64 | ELF            | --                 | --                |
 # ppc32       | SYSV | ELF, XCOFF    | --                 | SYSV / MACH-0     | 
 # ppc64       | SYSV | ELF, XCOFF    | --                 | SYSV / MACH-0     | 
 # sparc       | SYSV | ELF           | --                 | --                |
 # sparc64     | SYSV | ELF           | --                 | --                |
+# risc-v      | TODO                 | --                 | --                |
 # x86_64      | SYSV,X32 | ELF       | MS | PE            | SYSV / MACH-0     | 
 # wasm32/64   | Emscripten Toolchain, WebAssembly Binary Toolkit (WABT)
 # --------------------------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 # build targets
 option('docs',     type : 'boolean', value : 'true', description : 'Generate Doxygen documentation')
+option('prototypes', type : 'boolean', value : 'true', description : 'Build example applications')
 
 # linux display backends
 option('wayland',  type : 'feature', value : 'auto', description : 'Wayland linux display backend')

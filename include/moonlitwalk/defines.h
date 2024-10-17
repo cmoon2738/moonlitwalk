@@ -43,6 +43,10 @@ AMW_C_DECL_BEGIN
 #define AMW_CONCAT3_HELPER(a, b, c) a##b##c
 #define amw_concat3(a, b, c)        AMW_CONCAT3_HELPER(a, b, c)
 
+#if !defined(AMW_NDEBUG) && !defined(AMW_DEBUG)
+    #define AMW_NDEBUG 1
+#endif
+
 #ifndef AMW_PLATFORM_WINDOWS
     #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__CYGWIN__)
         #define AMW_PLATFORM_WINDOWS
@@ -106,17 +110,21 @@ AMW_C_DECL_BEGIN
     #endif
 #endif
 
+/* GNUC */
 #if defined(__GNUC__) && defined(__GNUC_PATCHLEVEL__)
     #define AMW_GNUC_VERSION amw_version(__GNUC__, __GNUC__MINOR__, __GNUC_PATCHLEVEL__)
 #elif defined(__GNUC__)
     #define AMW_GNUC_VERSION amw_version(__GNUC__, __GNUC_MINOR__, 0)
 #endif
 #if defined(AMW_GNUC_VERSION)
-    #define AMW_GNUC_VERSION_CHECK(ma,mi,p) (AMW_GNUC_VERSION >= amw_version(ma,mi,p))
+    #define AMW_GNUC_VERSION_CHECK(ma,mi,rev) (AMW_GNUC_VERSION >= amw_version(ma,mi,rev))
+    #define AMW_GNUC_VERSION_NOT(ma,mi,rev) (AMW_GNUC_VERSION < amw_version(ma,mi,rev))
 #else
-    #define AMW_GNUC_VERSION_CHECK(ma,mi,p) (0)
+    #define AMW_GNUC_VERSION_CHECK(ma,mi,rev) (0)
+    #define AMW_GNUC_VERSION_NOT(ma,mi,rev) (0)
 #endif
 
+/* MSVC */
 #if defined(_MSC_FULL_VER) && (_MSC_FULL_VER >= 140000000) && !defined(__ICL)
     #define AMW_MSVC_VERSION amw_version(_MSC_FULL_VER / 10000000, (_MSC_FULL_VER % 10000000) / 100000, (_MSC_FULL_VER % 100000) / 100)
 #elif defined(_MSC_FULL_VER) && !defined(__ICL)
@@ -125,13 +133,185 @@ AMW_C_DECL_BEGIN
     #define AMW_MSVC_VERSION amw_version(_MSC_VER / 100, _MSC_VER % 100, 0)
 #endif
 #if !defined(AMW_MSVC_VERSION)
-    #define AMW_MSVC_VERSION_CHECK(ma,mi,p) (0)
+    #define AMW_MSVC_VERSION_CHECK(ma,mi,rev) (0)
+    #define AMW_MSVC_VERSION_NOT(ma,mi,rev) (0)
 #elif defined(_MSC_VER) && (_MSC_VER >= 1400)
-    #define AMW_MSVC_VERSION_CHECK(ma,mi,p) (_MSC_FULL_VER >= ((ma * 10000000) + (mi * 100000) + (p)))
+    #define AMW_MSVC_VERSION_CHECK(ma,mi,rev) (_MSC_FULL_VER >= ((ma * 10000000) + (mi * 100000) + (rev)))
+    #define AMW_MSVC_VERSION_NOT(ma,mi,rev) (_MSC_FULL_VER < ((ma * 10000000) + (mi * 100000) + (rev)))
 #elif defined(_MSC_VER) && (_MSC_VER >= 1200)
-    #define AMW_MSVC_VERSION_CHECK(ma,mi,p) (_MSC_FULL_VER >= ((ma * 1000000) + (mi * 10000) + (p)))
+    #define AMW_MSVC_VERSION_CHECK(ma,mi,rev) (_MSC_FULL_VER >= ((ma * 1000000) + (mi * 10000) + (rev)))
+    #define AMW_MSVC_VERSION_NOT(ma,mi,rev) (_MSC_FULL_VER < ((ma * 1000000) + (mi * 10000) + (rev)))
 #else
-    #define AMW_MSVC_VERSION_CHECK(ma,mi,p) (_MSC_VER >= ((ma * 100) + (mi)))
+    #define AMW_MSVC_VERSION_CHECK(ma,mi,rev) (_MSC_VER >= ((ma * 100) + (mi)))
+    #define AMW_MSVC_VERSION_NOT(ma,mi,rev) (_MSC_VER < ((ma * 100) + (mi)))
+#endif
+
+/* INTEL */
+#if defined(__INTEL_COMPILER) && defined(__INTEL_COMPILER_UPDATE) && !defined(__ICL)
+    #define AMW_INTEL_VERSION amw_version(__INTEL_COMPILER / 100, __INTEL_COMPILER % 100, __INTEL_COMPILER_UPDATE)
+#elif defined(__INTEL_COMPILER) && !defined(__ICL)
+    #define AMW_INTEL_VERSION amw_version(__INTEL_COMPILER / 100, __INTEL_COMPILER % 100, 0)
+#endif
+#if defined(AMW_INTEL_VERSION)
+    #define AMW_INTEL_VERSION_CHECK(ma,mi,rev) (AMW_INTEL_VERSION >= amw_version(ma,mi,rev))
+    #define AMW_INTEL_VERSION_NOT(ma,mi,rev) (AMW_INTEL_VERSION < amw_version(ma,mi,rev))
+#else
+    #define AMW_INTEL_VERSION_CHECK(ma,mi,rev) (0)
+    #define AMW_INTEL_VERSION_NOT(ma,mi,rev) (0)
+#endif
+
+/* PGI */
+#if defined(__PGI) && defined(__PGIC__) && defined(__PGIC_MINOR__) && defined(__PGIC_PATCHLEVEL__)
+    #define AMW_PGI_VERSION amw_version(__PGIC__, __PGIC_MINOR__, __PGIC_PATCHLEVEL__)
+#endif
+#if defined(AMW_PGI_VERSION)
+    #define AMW_PGI_VERSION_CHECK(ma,mi,rev) (AMW_PGI_VERSION >= amw_version(ma,mi,rev))
+    #define AMW_PGI_VERSION_NOT(ma,mi,rev) (AMW_PGI_VERSION < amw_version(ma,mi,rev))
+#else
+    #define AMW_PGI_VERSION_CHECK(ma,mi,rev) (0)
+    #define AMW_PGI_VERSION_NOT(ma,mi,rev) (0)
+#endif
+
+/* SUNPRO */
+#if defined(__SUNPRO_C) && (__SUNPRO_C > 0x1000)
+    #define AMW_SUNPRO_VERSION amw_version((((__SUNPRO_C >> 16) & 0xf) * 10) + ((__SUNPRO_C >> 12) & 0xf), \
+            (((__SUNPRO_C >> 8) & 0xf) * 10) + ((__SUNPRO_C >> 4) & 0xf), (__SUNPRO_C & 0xf) * 10)
+#elif defined(__SUNPRO_C)
+    #define AMW_SUNPRO_VERSION amw_version((__SUNPRO_C >> 8) & 0xf, (__SUNPRO_C >> 4) & 0xf, (__SUNPRO_C) & 0xf)
+#elif defined(__SUNPRO_CC) && (__SUNPRO_CC > 0x1000)
+    #define AMW_SUNPRO_VERSION amw_version((((__SUNPRO_CC >> 16) & 0xf) * 10) + ((__SUNPRO_CC >> 12) & 0xf), \
+            (((__SUNPRO_CC >> 8) & 0xf) * 10) + ((__SUNPRO_CC >> 4) & 0xf), (__SUNPRO_CC & 0xf) * 10)
+#elif defined(__SUNPRO_CC)
+    #define AMW_SUNPRO_VERSION amw_version((__SUNPRO_CC >> 8) & 0xf, (__SUNPRO_CC >> 4) & 0xf, (__SUNPRO_CC) & 0xf)
+#endif
+#if defined(AMW_SUNPRO_VERSION)
+    #define AMW_SUNPRO_VERSION_CHECK(ma,mi,rev) (AMW_SUNPRO_VERSION >= amw_version(ma,mi,rev))
+    #define AMW_SUNPRO_VERSION_NOT(ma,mi,rev) (AMW_SUNPRO_VERSION < amw_version(ma,mi,rev))
+#else
+    #define AMW_SUNPRO_VERSION_CHECK(ma,mi,rev) (0)
+    #define AMW_SUNPRO_VERSION_NOT(ma,mi,rev) (0)
+#endif
+
+/* EMSCRIPTEN */
+#if defined(AMW_PLATFORM_EMSCRIPTEN) || defined(__EMSCRIPTEN__)
+    #include <emscripten.h>
+    #define AMW_EMSCRIPTEN_VERSION amw_version(__EMSCRIPTEN_major__, __EMSCRIPTEN_minor__, __EMSCRIPTEN_tiny__)
+#endif
+#if defined(AMW_EMSCRIPTEN_VERSION)
+    #define AMW_EMSCRIPTEN_VERSION_CHECK(ma,mi,rev) (AMW_EMSCRIPTEN_VERSION >= amw_version(ma,mi,rev))
+    #define AMW_EMSCRIPTEN_VERSION_NOT(ma,mi,rev) (AMW_EMSCRIPTEN_VERSION < amw_version(ma,mi,rev))
+#else
+    #define AMW_EMSCRIPTEN_VERSION_CHECK(ma,mi,rev) (0)
+    #define AMW_EMSCRIPTEN_VERSION_NOT(ma,mi,rev) (0)
+#endif
+
+/* ARM */
+#if defined(__CC_ARM) && defined(__ARMCOMPILER_VERSION)
+    #define AMW_ARM_VERSION amw_version(__ARMCOMPILER_VERSION / 1000000, \
+            (__ARMCOMPILER_VERSION % 1000000) / 10000, (__ARMCOMPILER_VERSION % 10000) / 100)
+#elif defined(__CC_ARM) && defined(__ARMCC_VERSION)
+    #define AMW_ARM_VERSION amw_version(__ARMCC_VERSION / 1000000, \
+            (__ARMCC_VERSION % 1000000) / 10000, (__ARMCC_VERSION % 10000) / 100)
+#endif
+#if defined(AMW_ARM_VERSION)
+    #define AMW_ARM_VERSION_CHECK(ma,mi,rev) (AMW_ARM_VERSION >= amw_version(ma,mi,rev))
+    #define AMW_ARM_VERSION_NOT(ma,mi,rev) (AMW_ARM_VERSION < amw_version(ma,mi,rev))
+#else
+    #define AMW_ARM_VERSION_CHECK(ma,mi,rev) (0)
+    #define AMW_ARM_VERSION_NOT(ma,mi,rev) (0)
+#endif
+
+/* IBM */
+#if defined(__ibmxl__)
+    #define AMW_IBM_VERSION amw_version(__ibmxl_version__, __ibmxl_release__, __ibmxl_modification__)
+#elif defined(__xlC__) && defined(__xlC_ver__)
+    #define AMW_IBM_VERSION amw_version(__xlC__ >> 8, __xlC__ & 0xff, (__xlC_ver__ >> 8) & 0xff)
+#elif defined(__xlC__)
+    #define AMW_IBM_VERSION amw_version(__xlC__ >> 8, __xlC__ & 0xff, 0)
+#endif
+#if defined(AMW_IBM_VERSION)
+    #define AMW_IBM_VERSION_CHECK(ma,mi,rev) (AMW_IBM_VERSION >= amw_version(ma,mi,rev))
+    #define AMW_IBM_VERSION_NOT(ma,mi,rev) (AMW_IBM_VERSION < amw_version(ma,mi,rev))
+#else
+    #define AMW_IBM_VERSION_CHECK(ma,mi,rev) (0)
+    #define AMW_IBM_VERSION_NOT(ma,mi,rev) (0)
+#endif
+
+/* CLANG */
+#if defined(__clang__) && !defined(AMW_CLANG_VERSION)
+    #if __has_warning("-Wmissing-designated-field-initializers")
+        #define MDE_CLANG_VERSION 190000
+    #elif __has_warning("-Woverriding-option")
+        #define MDE_CLANG_VERSION 180000
+    #elif __has_attribute(unsafe_buffer_usage)  /* no new warnings in 17.0 */
+        #define MDE_CLANG_VERSION 170000
+    #elif __has_attribute(nouwtable)  /* no new warnings in 16.0 */
+        #define MDE_CLANG_VERSION 160000
+    #elif __has_warning("-Warray-parameter")
+        #define MDE_CLANG_VERSION 150000
+    #elif __has_warning("-Wbitwise-instead-of-logical")
+        #define MDE_CLANG_VERSION 140000
+    #elif __has_warning("-Waix-compat")
+        #define MDE_CLANG_VERSION 130000
+    #elif __has_warning("-Wformat-insufficient-args")
+        #define MDE_CLANG_VERSION 120000
+    #elif __has_warning("-Wimplicit-const-int-float-conversion")
+        #define MDE_CLANG_VERSION 110000
+    #elif __has_warning("-Wmisleading-indentation")
+        #define MDE_CLANG_VERSION 100000
+    #elif defined(__FILE_NAME__)
+        #define MDE_CLANG_VERSION 90000
+    #elif __has_warning("-Wextra-semi-stmt") || __has_builtin(__builtin_rotateleft32)
+        #define MDE_CLANG_VERSION 80000
+    /* For reasons unknown, Xcode 10.3 (Apple LLVM version 10.0.1) is apparently
+     * based on Clang 7, but does not support the warning we test.
+     * See https://en.wikipedia.org/wiki/Xcode#Toolchain_versions and
+     * https://trac.macports.org/wiki/XcodeVersionInfo. */
+    #elif __has_warning("-Wc++98-compat-extra-semi") || \
+        (defined(__apple_build_version__) && __apple_build_version__ >= 10010000)
+        #define MDE_CLANG_VERSION 70000
+    #elif __has_warning("-Wpragma-pack")
+        #define MDE_CLANG_VERSION 60000
+    #elif __has_warning("-Wbitfield-enum-conversion")
+        #define MDE_CLANG_VERSION 50000
+    #elif __has_attribute(diagnose_if)
+        #define MDE_CLANG_VERSION 40000
+    #elif __has_warning("-Wcomma")
+        #define MDE_CLANG_VERSION 39000
+    #elif __has_warning("-Wdouble-promotion")
+        #define MDE_CLANG_VERSION 38000
+    #elif __has_warning("-Wshift-negative-value")
+        #define MDE_CLANG_VERSION 37000
+    #elif __has_warning("-Wambiguous-ellipsis")
+        #define AMW_CLANG_VERSION 36000
+    #else
+        #define AMW_CLANG_VERSION 1
+    #endif
+#endif
+#if defined(AMW_CLANG_VERSION)
+    #define AMW_CLANG_VERSION_CHECK(ma,mi,rev) (AMW_CLANG_VERSION >= ((ma * 10000) + (mi * 1000) + (rev)))
+    #define AMW_CLANG_VERSION_NOT(ma,mi,rev) (AMW_CLANG_VERSION < ((ma * 10000) + (mi * 1000) + (rev)))
+#else
+    #define AMW_CLANG_VERSION_CHECK(ma,mi,rev) (0)
+    #define AMW_CLANG_VERSION_NOT(ma,mi,rev) (0)
+#endif
+
+/* GCC */
+#if defined(AMW_GNUC_VERSION) && \
+    !defined(AMW_CLANG_VERSION) && \
+    !defined(AMW_INTEL_VERSION) && \
+    !defined(AMW_PGI_VERSION) && \
+    !defined(AMW_ARM_VERSION) && \
+    !defined(AMW_IBM_VERSION) && \
+    !defined(__COMPCERT__)
+    #define AMW_GCC_VERSION AMW_GNUC_VERSION
+#endif
+#if defined(AMW_GCC_VERSION)
+    #define AMW_GCC_VERSION_CHECK(ma,mi,rev) (AMW_GCC_VERSION >= amw_version(ma,mi,rev))
+    #define AMW_GCC_VERSION_NOT(ma,mi,rev) (AMW_GCC_VERSION < amw_version(ma,mi,rev))
+#else
+    #define AMW_GCC_VERSION_CHECK(ma,mi,rev) (0)
+    #define AMW_GCC_VERSION_NOT(ma,mi,rev) (0)
 #endif
 
 /* DLL export */
@@ -139,7 +319,7 @@ AMW_C_DECL_BEGIN
     #ifdef AMW_DLL_EXPORT
         #if defined(AMW_PLATFORM_WINDOWS) || defined(__CYGWIN__)
             #define AMW_API extern __declspec(dllexport)
-        #elif defined(__GNUC__) && __GNUC__ >= 4
+        #elif AMW_GNUC_VERSION_CHECK(4,0,0)
             #define AMW_API extern __attribute__ ((visibility("default")))
         #endif
     #else
@@ -149,7 +329,7 @@ AMW_C_DECL_BEGIN
 
 /* By default use the C calling convention */
 #ifndef AMW_CALL
-    #if defined(AMW_PLATFORM_WINDOWS) && !defined(__GNUC__)
+    #if defined(AMW_PLATFORM_WINDOWS) && !defined(AMW_GNUC_VERSION)
         #define AMW_CALL __cdecl
     #else
         #define AMW_CALL
@@ -190,7 +370,7 @@ AMW_C_DECL_BEGIN
 #ifndef __MACH__
     #ifndef NULL
         #ifdef __cplusplus
-            #define NULL 0
+            #define NULL (0)
         #else
             #define NULL ((void *)0)
         #endif
@@ -200,20 +380,26 @@ AMW_C_DECL_BEGIN
 #ifdef __has_builtin
     #define AMW_HAS_BUILTIN(x) __has_builtin(x)
 #else
-    #define AMW_HAS_BUILTIN(x) 0
+    #define AMW_HAS_BUILTIN(x) (0)
 #endif
 
 #ifdef __has_feature
     #define AMW_HAS_FEATURE(x) __has_feature(x)
 #else
-    #define AMW_HAS_FEATURE(x) 0
+    #define AMW_HAS_FEATURE(x) (0)
 #endif
 
-#if defined(__clang__) && defined(__has_attribute)
+#ifdef __has_warning
+    #define AMW_HAS_WARNING(x) __has_warning(x)
+#else
+    #define AMW_HAS_WARNING(x) (0)
+#endif
+
+#if defined(AMW_CLANG_VERSION) && defined(__has_attribute)
     #if __has_attribute(target)
         #define AMW_HAS_TARGET_ATTRIBS
     #endif
-#elif defined(__GNUC__) && (__GNUC__ + (__GNUC_MINOR__ >= 9) > 4) /* gcc >= 4.9 */
+#elif AMW_GNUC_VERSION_CHECK(4,9,0)
     #define AMW_HAS_TARGET_ATTRIBS
 #elif defined(__ICC) && __ICC >= 1600
     #define AMW_HAS_TARGET_ATTRIBS
@@ -223,6 +409,41 @@ AMW_C_DECL_BEGIN
     #define AMW_TARGETING(x) __attribute__((target(x)))
 #else
     #define AMW_TARGETING(x)
+#endif
+
+#if (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)) || \
+    AMW_CLANG_VERSION_CHECK(1,0,0) || \
+    AMW_GCC_VERSION_CHECK(3,0,0) || \
+    AMW_INTEL_VERSION_CHECK(13,0,0) || \
+    AMW_PGI_VERSION_CHECK(18,4,0) || \
+    AMW_SUNPRO_VERSION_CHECK(8,0,0) || \
+    AMW_ARM_VERSION_CHECK(4,1,0) || \
+    (AMW_IBM_VERSION_CHECK(10,1,0) && defined(__C99_PRAGMA_OPERATOR))
+    #define AMW_PRAGMA(x) __Pragma(#x)
+#elif AMW_MSVC_VERSION_CHECK(15,0,0)
+    #define AMW_PRAGMA(x) __pragma(x)
+#else
+    #define AMW_PRAGMA(x)
+#endif
+
+#if defined(AMW_CLANG_VERSION)
+    #define AMW_DIAGNOSTIC_PUSH _Pragma("clang diagnostic push")
+    #define AMW_DIAGNOSTIC_POP _Pragma("clang diagnostic pop")
+#elif AMW_INTEL_VERSION_CHECK(13,0,0)
+    #define AMW_DIAGNOSTIC_PUSH _Pragma("warning(push)")
+    #define AMW_DIAGNOSTIC_POP _Pragma("warning(pop)")
+#elif AMW_GCC_VERSION_CHECK(4,6,0)
+    #define AMW_DIAGNOSTIC_PUSH _Pragma("GCC diagnostic push")
+    #define AMW_DIAGNOSTIC_POP _Pragma("GCC diagnostic pop")
+#elif AMW_MSVC_VERSION_CHECK(15,0,0)
+    #define AMW_DIAGNOSTIC_PUSH __pragma(warning(push))
+    #define AMW_DIAGNOSTIC_POP __pragma(warning(pop))
+#elif AMW_ARM_VERSION_CHECK(5,6,0)
+    #define AMW_DIAGNOSTIC_PUSH _Pragma("push")
+    #define AMW_DIAGNOSTIC_POP _Pragma("pop")
+#else
+    #define AMW_DIAGNOSTIC_PUSH
+    #define AMW_DIAGNOSTIC_POP
 #endif
 
 #if !defined(AMW_ALIGN_MAXIMUM)
@@ -1121,6 +1342,51 @@ AMW_API void    AMW_CALL amw_log_set_quiet(bool silence);
 #define amw_log_fatal(...) 
 #endif
 
+#if AMW_HAS_BUILTIN(__builtin_debugtrap)
+    #define amw_debugtrap() __builtin_debugtrap()
+#elif AMW_HAS_BUILTIN(__debugbreak)
+    #define amw_debugtrap() __debugbreak()
+#endif
+#if !defined(amw_debugtrap)
+    #if defined(_MSC_VER) || defined(__INTEL_COMPILER)
+        #define amw_debugtrap() __debugbreak()
+    #elif defined(__ARMCC_VERSION)
+        #define amw_debugtrap() __breakpoint(42)
+    #elif defined(__ibmxl__) || defined(__xlC__)
+        #include <builtins.h>
+        #define amw_debugtrap() __trap(42)
+    #elif defined(__DMC__) && defined(_M_IX86)
+        static inline void amw_debugtrap(void) { __asm int 3h; }
+    #elif defined(__i386__) || defined(__x86_64__)
+        static inline void amw_debugtrap(void) { __asm__ __volatile__("int $03"); }
+    #elif defined(__thumb__)
+        static inline void amw_debugtrap(void) { __asm__ __volatile__(".inst 0xde01"); }
+    #elif defined(__aarch64__)
+        static inline void amw_debugtrap(void) { __asm__ __volatile__(".inst 0xd4200000"); }
+    #elif defined(__arm__)
+        static inline void amw_debugtrap(void) { __asm__ __volatile__(".inst 0xe7f001f0"); }
+    #elif defined (__alpha__) && !defined(__osf__)
+        static inline void amw_debugtrap(void) { __asm__ __volatile__("bpt"); }
+    #elif defined(_54_)
+        static inline void amw_debugtrap(void) { __asm__ __volatile__("ESTOP"); }
+    #elif defined(_55_)
+        static inline void amw_debugtrap(void) { __asm__ __volatile__(";\n .if (.MNEMONIC)\n ESTOP_1\n .else\n ESTOP_1()\n .endif\n NOP"); }
+    #elif defined(_64P_)
+        static inline void amw_debugtrap(void) { __asm__ __volatile__("SWBP 0"); }
+    #elif defined(_6x_)
+        static inline void amw_debugtrap(void) { __asm__ __volatile__("NOP\n .word 0x10000000"); }
+    #elif defined(__STDC_HOSTED__) && (__STDC_HOSTED__ == 0) && defined(__GNUC__)
+        #define amw_debugtrap() __builtin_trap()
+    #else
+        #include <signal.h>
+        #if defined(SIGTRAP)
+            #define amw_debugtrap() raise(SIGTRAP)
+        #else
+            #define amw_debugtrap() raise(SIGABRT)
+        #endif
+    #endif
+#endif
+
 #if defined(__cplusplus)
     #if (__cplusplus >= 201103L)
         #define amw_static_assert(name, x) static_assert(x, #x)
@@ -1130,7 +1396,7 @@ AMW_API void    AMW_CALL amw_log_set_quiet(bool silence);
 #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
     #define amw_static_assert(name, x) _Static_assert(x, #x)
 /* GCC 4.6 or later */
-#elif defined(__GNUC__) && (__GNUC__ > 4 || __GNUC__ == 4 && defined __GNUC_MINOR__ && __GNUC_MINOR >= 6)
+#elif AMW_GNUC_VERSION_CHECK(4,6,0)
     /* It will work but it may throw a warning:
      * warning: ISO C99 does not support '_Static_assert' [-Wpedantic] */
     #define amw_static_assert(name, x) _Static_assert(x, #x)
@@ -1149,33 +1415,12 @@ AMW_API void    AMW_CALL amw_log_set_quiet(bool silence);
     #endif
 #endif
 
-#if defined(_MSC_VER)
-    extern void __cdecl __debugbreak(void);
-    #define amw_debug_breakpoint() __debugbreak()
-#elif AMW_HAS_BUILTIN(__builtin_debugtrap)
-    #define amw_debug_breakpoint() __builtin_debugtrap()
-#elif ( (!defined(__NACL__)) && ((defined(__GNUC__) || defined(__clang__)) && (defined(__i386__) || defined(__x86_64__))) )
-    #define amw_debug_breakpoint() __asm__ __volatile__ ( "int $3\n\t" )
-#elif (defined(__GNUC__) || defined(__clang__)) && defined(__riscv)
-    #define amw_debug_breakpoint() __asm__ __volatile__ ( "ebreak\n\t" )
-#elif ( defined(__APPLE__) && (defined(__arm64__) || defined(__aarch64__)) )
-    #define amw_debug_breakpoint() __asm__ __volatile__ ( "brk #22\n\t" )
-#elif defined(__APPLE__) && defined(__arm__)
-    #define amw_debug_breakpoint() __asm__ __volatile__ ( "bkpt #22\n\t" )
-#elif defined(_WIN32) && ((defined(__GNUC__) || defined(__clang__)) && (defined(__arm64__) || defined(__aarch64__)) )
-    #define amw_debug_breakpoint() __asm__ __volatile__ ( "brk #0xF000\n\t" )
-#elif defined(__386__) && defined(__WATCOMC__)
-    #define amw_debug_breakpoint() { _asm { int 0x03 } }
-#else
-    #define amw_debug_breakpoint()
-#endif
-
 #define amw_disabled_assert(condition)
 #define amw_enabled_assert(condition)                            \
     do {                                                         \
         if (! (condition)) {                                     \
             amw_log_fatal("Assertion '%s' failed.", #condition); \
-            amw_debug_breakpoint();                              \
+            amw_debugtrap();                                     \
         }                                                        \
     } while (AMW_FALSE)
 
@@ -1201,7 +1446,6 @@ AMW_API void    AMW_CALL amw_log_set_quiet(bool silence);
 #else
     #error Unknown assertion level. Use: 0-disabled, 1-release, 2-debug, 3-paranoid.
 #endif
-
 
 #if AMW_HAS_FEATURE(address_sanitizer)
     #define __SANITIZE_ADDRESS__ 1
@@ -1303,7 +1547,6 @@ AMW_API void    AMW_CALL amw_log_set_quiet(bool silence);
             (defined(__MIPS__) && defined(__MIPSEB__)) || \
             defined(__ppc__) || defined(__POWERPC__) || defined(__powerpc__) || defined(__PPC__) || \
             defined(__sparc__) || defined(__sparc)
-
             #define AMW_BYTEORDER   AMW_BIG_ENDIAN
         #else
             #define AMW_BYTEORDER   AMW_LIL_ENDIAN
@@ -1334,14 +1577,10 @@ AMW_API void    AMW_CALL amw_log_set_quiet(bool silence);
 #endif
 
 /* various modern compilers may have builtin swap */
-#if defined(__GNUC__) || defined(__clang__)
-    #define AMW_HAS_BUILTIN_BSWAP16 (AMW_HAS_BUILTIN(__builtin_bswap16)) || \
-        (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8))
-    #define AMW_HAS_BUILTIN_BSWAP32 (AMW_HAS_BUILTIN(__builtin_bswap32)) || \
-        (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3))
-    #define AMW_HAS_BUILTIN_BSWAP64 (AMW_HAS_BUILTIN(__builtin_bswap64)) || \
-        (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3))
-
+#if defined(AMW_GNUC_VERSION) || defined(__clang__)
+    #define AMW_HAS_BUILTIN_BSWAP16 (AMW_HAS_BUILTIN(__builtin_bswap16)) || AMW_GNUC_VERSION_CHECK(4,8,0)
+    #define AMW_HAS_BUILTIN_BSWAP32 (AMW_HAS_BUILTIN(__builtin_bswap32)) || AMW_GNUC_VERSION_CHECK(4,3,0)
+    #define AMW_HAS_BUILTIN_BSWAP64 (AMW_HAS_BUILTIN(__builtin_bswap64)) || AMW_GNUC_VERSION_CHECK(4,3,0)
     /* this one is broken */
     #define AMW_HAS_BROKEN_BSWAP (__GNUC__ == 2 && __GNUC_MINOR__ <= 95)
 #else
@@ -1398,7 +1637,7 @@ AMW_API void    AMW_CALL amw_log_set_quiet(bool silence);
 /* Byte swap 32-bit integer. */
 #if AMW_HAS_BUILTIN_BSWAP32
     #define amw_swap32(x) __builtin_bswap32(x)
-#elif (defined(_MSC_VER) && (_MSC_VER >= 1400)) && !defined(__ICL)
+#elif AMW_MSVC_VERSION_CHECK(14,0,0) && !defined(__ICL)
     #pragma intrinsic(_byteswap_ulong)
     #define amw_swap32(x) _byteswap_ulong(x)
 #elif defined(__i386__) && !AMW_HAS_BROKEN_BSWAP
@@ -1445,7 +1684,7 @@ AMW_API void    AMW_CALL amw_log_set_quiet(bool silence);
 /* Byte swap 64-bit integer. */
 #if AMW_HAS_BUILTIN_BSWAP64
     #define amw_swap64(x) __builtin_bswap64(x)
-#elif (defined(_MSC_VER) && (_MSC_VER >= 1400)) && !defined(__ICL)
+#elif AMW_MSVC_VERSION_CHECK(14,0,0) && !defined(__ICL)
     #pragma intrinsic(_byteswap_uint64)
     #define amw_swap64(x) _byteswap_uint64(x)
 #elif defined(__i386__) && !AMW_HAS_BROKEN_BSWAP
@@ -1577,8 +1816,6 @@ AMW_API void     AMW_CALL amw_ticks_quit(void);
 /** Get the time passed since initializing the 'ticks' timer, in ms or ns. */
 AMW_API uint64_t AMW_CALL amw_ticks_ms(void);
 AMW_API uint64_t AMW_CALL amw_ticks_ns(void);
-
-/* TODO atomic operations */
 
 #define amw_malloc  malloc
 #define amw_calloc  calloc
@@ -1783,19 +2020,48 @@ typedef enum {
     /* TODO */
 } amw_result_t;
 
-#define AMW_FLAGS_WORD_BIT_SIZE (sizeof(unsigned int) * CHAR_BIT)
-#define AMW_FLAGS_WORD_MASK(bit) ((unsigned int)1 << ((bit) % AMW_FLAGS_WORD_BIT_SIZE))
+#define amw_read_flags(flags, mask)   ((flags) & (mask))   /* check for flags */
+#define amw_set_flags(flags, mask)    ((flags) |= (mask))  /* set the specified flags to 1 */
+#define amw_unset_flags(flags, mask)  ((flags) &= ~(mask)) /* set the specified flags to 0 */
+#define amw_toggle_flags(flags, mask) ((flags) ^= (mask))  /* toggle the specified flags */
 
-#define amw_read_bits(bits, mask)   ((bits) & (mask))   /* check for bits */
-#define amw_set_bits(bits, mask)    ((bits) |= (mask))  /* set the specified bits to 1 */
-#define amw_unset_bits(bits, mask)  ((bits) &= ~(mask)) /* set the specified bits to 0 */
-#define amw_toggle_bits(bits, mask) ((bits) ^= (mask))  /* toggle the specified bits */
-
-#define amw_read_bit(bits, bit)     (bits & AMW_FLAGS_WORD_MASK(bit))   /* check for bit */
-#define amw_set_bit(bits, bit)      (bits |= AMW_FLAGS_WORD_MASK(bit))  /* set the specified bits to 1 */
-#define amw_unset_bit(bits, bit)    (bits &= ~AMW_FLAGS_WORD_MASK(bit)) /* set the specified bits to 0 */
-#define amw_toggle_bit(bits, bit)   (bits ^= AMW_FLAGS_WORD_MASK(bit))  /* toggle the specified bits */
+#define amw_read_bit(flags, bit)     (flags & (1 << bit))   /* check for bit */
+#define amw_set_bit(flags, bit)      (flags |= (1 << bit))  /* set the specified bits to 1 */
+#define amw_unset_bit(flags, bit)    (flags &= ~(1 << bit)) /* set the specified bits to 0 */
+#define amw_toggle_bit(flags, bit)   (flags ^= (1 << bit))  /* toggle the specified bits */
 
 AMW_C_DECL_END
+
+#if defined(__cplusplus)
+    #if AMW_HAS_WARNING("-Wc++98-compat")
+        #if AMW_HAS_WARNING("-Wc++17-extensions")
+            #if AMW_HAS_WARNING("-Wc++1z-extensions")
+                #define AMW_DIAGNOSTIC_DISABLE_CPP98_COMPAT_WRAP_(xpr) \
+                    AMW_DIAGNOSTIC_PUSH \
+                    _Pragma("clang diagnostic ignored \"-Wc++98-compat\"") \
+                    _Pragma("clang diagnostic ignored \"-Wc++17-extensions\"") \
+                    _Pragma("clang diagnostic ignored \"-Wc++1z-extensions\"") \
+                    xpr \
+                    AMW_DIAGNOSTIC_POP
+            #else
+                #define AMW_DIAGNOSTIC_DISABLE_CPP98_COMPAT_WRAP_(xpr) \
+                    AMW_DIAGNOSTIC_PUSH \
+                    _Pragma("clang diagnostic ignored \"-Wc++98-compat\"") \
+                    _Pragma("clang diagnostic ignored \"-Wc++17-extensions\"") \
+                    xpr \
+                    AMW_DIAGNOSTIC_POP
+            #endif
+        #else
+            #define AMW_DIAGNOSTIC_DISABLE_CPP98_COMPAT_WRAP_(xpr) \
+                AMW_DIAGNOSTIC_PUSH \
+                _Pragma("clang diagnostic ignored \"-Wc++98-compat\"") \
+                xpr \
+                AMW_DIAGNOSTIC_POP
+        #endif
+    #endif
+#endif
+#if !defined(AMW_DIAGNOSTIC_DISABLE_CPP98_COMPAT_WRAP_)
+    #define AMW_DIAGNOSTIC_DISABLE_CPP98_COMPAT_WRAP_(x) x
+#endif
 
 #endif /* _amw_defines_h_ */
